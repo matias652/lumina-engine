@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    name: Build (Linux)
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake ninja-build pkg-config liblua5.4-dev libbox2d-dev
+
+    - name: Install SDL3
+      run: |
+        git clone --depth 1 https://github.com/libsdl-org/SDL.git
+        cd SDL
+        cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+        cmake --build build --parallel
+        sudo cmake --install build
+
+    - name: Configure CMake
+      run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      env:
+        PKG_CONFIG_PATH: /usr/local/lib/pkgconfig
+
+    - name: Build
+      run: cmake --build build --parallel

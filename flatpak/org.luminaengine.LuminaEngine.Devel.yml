@@ -1,0 +1,47 @@
+app-id: org.luminaengine.LuminaEngine.Devel
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.cmake
+  - org.freedesktop.Sdk.Extension.gcc17
+
+finish-args:
+  - --share=network
+  - --socket=x11
+  - --socket=wayland
+  - --device=dri
+  - --allow=devel
+
+modules:
+  - name: sol2
+    buildsystem: simple
+    sources:
+      - type: git
+        url: https://github.com/ThePhD/sol2.git
+        tag: develop
+        commit: HEAD
+    build-commands:
+      - mkdir -p /app/include
+      - cp -r include/sol /app/include/
+
+  - name: lumina-engine
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_INSTALL_PREFIX=/app
+      - -DCMAKE_INSTALL_LIBDIR=lib
+      - -DBOX2D_BUILD_SHARED_LIBS=OFF
+    sources:
+      - type: git
+        url: https://github.com/lumina-engine/lumina-engine.git
+        tag: v1.0.0
+        commit: HEAD
+    build-commands:
+      - cmake -B build -S . -GNinja
+      - cmake --build build
+      - cmake --install build
+
+cleanup:
+  - /usr/share/doc
+  - /usr/share/man

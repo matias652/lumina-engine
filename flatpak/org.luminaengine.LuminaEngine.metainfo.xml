@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.luminaengine.LuminaEngine</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Lumina Engine</name>
+  <summary>A lightweight and versatile C++ game engine</summary>
+  <description>
+    <p>
+      Lumina Engine is a modern, lightweight, and high-performance game engine developed in C++.
+      Designed with modularity and ease of use in mind, it provides a robust foundation for creating
+      2D games and interactive applications.
+    </p>
+    <p>
+      The engine offers a comprehensive suite of tools for developers, including:
+    </p>
+    <ul>
+      <li>High-performance 2D rendering system optimized for speed and visual fidelity.</li>
+      <li>Integrated 2D physics engine for realistic collision detection and simulations.</li>
+      <li>Flexible scripting support allowing for rapid prototyping and game logic implementation.</li>
+      <li>Cross-platform architecture designed to run smoothly on modern Linux environments.</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">org.luminaengine.LuminaEngine.desktop</launchable>
+  <url type="homepage">https://github.com/lumina-engine/lumina-engine</url>
+  <url type="bugtracker">https://github.com/lumina-engine/lumina-engine/issues</url>
+  <content_rating type="oars-1.1" />
+  <releases>
+    <release version="1.0.0" date="2025-01-11" />
+  </releases>
+  <developer_name>Lumina Engine Community</developer_name>
+</component>
