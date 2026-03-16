@@ -1,0 +1,9 @@
+{
+    "name": "My Game",
+    "width": 1280,
+    "height": 720,
+    "mainScript": "main.lua",
+    "author": "Game Developer",
+    "version": "1.0.0",
+    "description": "A game made with Lumina Engine"
+}

@@ -65,6 +65,9 @@ public:
 
     // Renderer access
     SDL_Renderer* GetRenderer() const { return m_renderer; }
+    
+    // Set window size (for game resolution changes)
+    void SetWindowSize(int width, int height);
 
 #ifdef LUA_AVAILABLE
     // Load Lua script

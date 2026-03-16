@@ -339,6 +339,14 @@ void Engine::MaximizeWindow() {
     }
 }
 
+void Engine::SetWindowSize(int width, int height) {
+    if (m_window) {
+        SDL_SetWindowSize(m_window, width, height);
+        m_width = width;
+        m_height = height;
+    }
+}
+
 // Time methods
 float Engine::GetTime() const {
     if (m_startTime == 0) return 0.0f;

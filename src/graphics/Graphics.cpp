@@ -29,6 +29,15 @@ void Graphics::Init(SDL_Renderer* renderer) {
     s_zoom = 1.0f;
     s_blendMode = 1;
     s_alpha = 255;
+    // Initialize viewport to renderer size
+    if (s_renderer) {
+        int w, h;
+        SDL_GetRendererOutputSize(s_renderer, &w, &h);
+        s_viewportX = 0;
+        s_viewportY = 0;
+        s_viewportW = w;
+        s_viewportH = h;
+    }
     LUMINA_LOG_INFO("Graphics system initialized");
 }
 
@@ -55,7 +64,7 @@ void Graphics::Present() {
 void Graphics::DrawPoint(float x, float y, uint32_t color) {
     if (!s_renderer) return;
     SDL_SetRenderDrawColor(s_renderer, GetColorR(color), GetColorG(color), GetColorB(color), GetColorA(color));
-    SDL_RenderPoint(s_renderer, x, y);
+    SDL_RenderDrawPoint(s_renderer, x, y);
 }
 
 void Graphics::DrawLine(float x1, float y1, float x2, float y2, uint32_t color) {
@@ -89,7 +98,7 @@ void Graphics::DrawCircle(float x, float y, float radius, uint32_t color) {
     for (int32_t dy = -r; dy <= r; dy++) {
         for (int32_t dx = -r; dx <= r; dx++) {
             if (dx * dx + dy * dy == r * r) {
-                SDL_RenderPoint(s_renderer, cx + dx, cy + dy);
+                SDL_RenderDrawPoint(s_renderer, cx + dx, cy + dy);
             }
         }
     }
@@ -106,7 +115,7 @@ void Graphics::DrawCircleFilled(float x, float y, float radius, uint32_t color) 
     for (int32_t dy = -r; dy <= r; dy++) {
         for (int32_t dx = -r; dx <= r; dx++) {
             if (dx * dx + dy * dy <= r * r) {
-                SDL_RenderPoint(s_renderer, cx + dx, cy + dy);
+                SDL_RenderDrawPoint(s_renderer, cx + dx, cy + dy);
             }
         }
     }
@@ -139,7 +148,7 @@ void Graphics::DrawTriangleFilled(float x1, float y1, float x2, float y2, float 
     for (float py = minY; py <= maxY; py++) {
         for (float px = minX; px <= maxX; px++) {
             if (pointInTriangle(px, py, x1, y1, x2, y2, x3, y3)) {
-                SDL_RenderPoint(s_renderer, static_cast<float>(px), static_cast<float>(py));
+                SDL_RenderDrawPoint(s_renderer, static_cast<float>(px), static_cast<float>(py));
             }
         }
     }
