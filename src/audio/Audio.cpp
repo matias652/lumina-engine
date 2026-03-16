@@ -44,4 +44,12 @@ void AudioManager::SetMasterVolume(float /*volume*/) {
     // Not implemented
 }
 
+float AudioManager::GetMasterVolume() {
+    return 1.0f; // Not implemented, return default
+}
+
+void AudioManager::StopAll() {
+    // Not implemented
+}
+
 } // namespace Lumina

@@ -202,6 +202,7 @@ set(FRAMEWORK_SOURCES
     "${SOURCE_DIR}/input/Input.cpp"
     "${SOURCE_DIR}/graphics/TextureManager.cpp"
     "${SOURCE_DIR}/graphics/Sprite.cpp"
+    "${SOURCE_DIR}/graphics/Graphics.cpp"
     "${SOURCE_DIR}/audio/Audio.cpp"
     "${SOURCE_DIR}/physics/Physics.cpp"
 )

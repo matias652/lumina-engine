@@ -38,6 +38,34 @@ public:
     int GetWidth() const noexcept { return m_width; }
     int GetHeight() const noexcept { return m_height; }
 
+    // Window methods
+    void SetWindowTitle(const std::string& title);
+    std::string GetWindowTitle() const;
+    void SetFullscreen(bool enabled);
+    bool IsFullscreen() const;
+    void MinimizeWindow();
+    void MaximizeWindow();
+
+    // Time methods
+    float GetTime() const;
+    float GetDeltaTime() const;
+    float GetFPS() const;
+
+    // Physics methods (forwarded to PhysicsWorld)
+    void SetGravity(float x, float y);
+    std::pair<float, float> GetGravity() const;
+    int CreateBody(float x, float y, bool isDynamic);
+    void DestroyBody(int bodyId);
+    void ApplyForce(int bodyId, float forceX, float forceY);
+    void ApplyImpulse(int bodyId, float ix, float iy);
+    std::pair<float, float> GetPosition(int bodyId) const;
+    void SetPosition(int bodyId, float x, float y);
+    std::pair<float, float> GetVelocity(int bodyId) const;
+    void SetVelocity(int bodyId, float vx, float vy);
+
+    // Renderer access
+    SDL_Renderer* GetRenderer() const { return m_renderer; }
+
 #ifdef LUA_AVAILABLE
     // Load Lua script
     bool LoadScript(const std::string& filename);
@@ -67,7 +95,11 @@ private:
     
     // Time management
     uint64_t m_lastFrameTime;
+    uint64_t m_startTime;
     float m_deltaTime;
+    float m_fps;
+    int m_frameCount;
+    float m_fpsTimer;
     
     void ProcessEvents();
     void Update(float deltaTime);

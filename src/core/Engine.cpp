@@ -3,6 +3,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_render.h>
 #include "LuminaEngine/graphics/TextureManager.h"
+#include "LuminaEngine/graphics/Graphics.h"
 #include "LuminaEngine/physics/Physics.h"
 
 #ifdef LUMINA_GLES_AVAILABLE
@@ -32,7 +33,11 @@ Engine::Engine()
     , m_physicsWorld(std::make_unique<PhysicsWorld>())
     , m_physicsAccumulator(0.0f)
     , m_lastFrameTime(0)
+    , m_startTime(0)
     , m_deltaTime(0.0f)
+    , m_fps(0.0f)
+    , m_frameCount(0)
+    , m_fpsTimer(0.0f)
 {
     #ifdef LUA_AVAILABLE
     m_scriptEngine = std::make_unique<ScriptEngine>();
@@ -104,6 +109,9 @@ bool Engine::Initialize(const std::string& windowTitle, int width, int height) {
     // Initialize TextureManager
     TextureManager::Init(m_renderer);
 
+    // Initialize Graphics system
+    Graphics::Init(m_renderer);
+
     // Initialize physics world
     m_physicsWorld->Init(0.0f, -9.8f);
 
@@ -119,6 +127,7 @@ bool Engine::Initialize(const std::string& windowTitle, int width, int height) {
 
     LUMINA_LOG_INFO("Engine initialized successfully.");
     m_lastFrameTime = SDL_GetPerformanceCounter();
+    m_startTime = SDL_GetPerformanceCounter();
     m_isRunning = true;
     m_initialized = true;
     
@@ -224,6 +233,15 @@ float Engine::CalculateDeltaTime() {
         deltaTime = 0.1f;
     }
     
+    // Calculate FPS
+    m_frameCount++;
+    m_fpsTimer += deltaTime;
+    if (m_fpsTimer >= 1.0f) {
+        m_fps = static_cast<float>(m_frameCount) / m_fpsTimer;
+        m_frameCount = 0;
+        m_fpsTimer = 0.0f;
+    }
+    
     return deltaTime;
 }
 
@@ -243,6 +261,9 @@ void Engine::Shutdown() {
 
     // Clean up TextureManager
     TextureManager::Shutdown();
+
+    // Clean up Graphics system
+    Graphics::Shutdown();
 
     // Clean up ScriptEngine
     #ifdef LUA_AVAILABLE
@@ -280,5 +301,122 @@ bool Engine::LoadScript(const std::string& filename) {
     return false;
 }
 #endif
+
+// Window methods
+void Engine::SetWindowTitle(const std::string& title) {
+    m_windowTitle = title;
+    if (m_window) {
+        SDL_SetWindowTitle(m_window, title.c_str());
+    }
+}
+
+std::string Engine::GetWindowTitle() const {
+    return m_windowTitle;
+}
+
+void Engine::SetFullscreen(bool enabled) {
+    if (m_window) {
+        SDL_SetWindowFullscreen(m_window, enabled ? SDL_WINDOW_FULLSCREEN : 0);
+    }
+}
+
+bool Engine::IsFullscreen() const {
+    if (m_window) {
+        return (SDL_GetWindowFlags(m_window) & SDL_WINDOW_FULLSCREEN) != 0;
+    }
+    return false;
+}
+
+void Engine::MinimizeWindow() {
+    if (m_window) {
+        SDL_MinimizeWindow(m_window);
+    }
+}
+
+void Engine::MaximizeWindow() {
+    if (m_window) {
+        SDL_MaximizeWindow(m_window);
+    }
+}
+
+// Time methods
+float Engine::GetTime() const {
+    if (m_startTime == 0) return 0.0f;
+    uint64_t currentTime = SDL_GetPerformanceCounter();
+    return static_cast<float>(currentTime - m_startTime) / static_cast<float>(SDL_GetPerformanceFrequency());
+}
+
+float Engine::GetDeltaTime() const {
+    return m_deltaTime;
+}
+
+float Engine::GetFPS() const {
+    return m_fps;
+}
+
+// Physics methods (forwarded to PhysicsWorld)
+void Engine::SetGravity(float x, float y) {
+    if (m_physicsWorld) {
+        m_physicsWorld->SetGravity(x, y);
+    }
+}
+
+std::pair<float, float> Engine::GetGravity() const {
+    if (m_physicsWorld) {
+        return m_physicsWorld->GetGravity();
+    }
+    return {0.0f, -9.8f};
+}
+
+int Engine::CreateBody(float x, float y, bool isDynamic) {
+    if (m_physicsWorld) {
+        return m_physicsWorld->CreateBody(x, y, isDynamic);
+    }
+    return -1;
+}
+
+void Engine::DestroyBody(int bodyId) {
+    if (m_physicsWorld) {
+        m_physicsWorld->DestroyBody(bodyId);
+    }
+}
+
+void Engine::ApplyForce(int bodyId, float forceX, float forceY) {
+    if (m_physicsWorld) {
+        m_physicsWorld->ApplyForce(bodyId, forceX, forceY);
+    }
+}
+
+void Engine::ApplyImpulse(int bodyId, float ix, float iy) {
+    if (m_physicsWorld) {
+        m_physicsWorld->ApplyImpulse(bodyId, ix, iy);
+    }
+}
+
+std::pair<float, float> Engine::GetPosition(int bodyId) const {
+    if (m_physicsWorld) {
+        return m_physicsWorld->GetPosition(bodyId);
+    }
+    return {0.0f, 0.0f};
+}
+
+void Engine::SetPosition(int bodyId, float x, float y) {
+    if (m_physicsWorld) {
+        m_physicsWorld->SetPosition(bodyId, x, y);
+    }
+}
+
+std::pair<float, float> Engine::GetVelocity(int bodyId) const {
+    if (m_physicsWorld) {
+        return m_physicsWorld->GetVelocity(bodyId);
+    }
+    return {0.0f, 0.0f};
+}
+
+void Engine::SetVelocity(int bodyId, float vx, float vy) {
+    if (m_physicsWorld) {
+        m_physicsWorld->SetVelocity(bodyId, vx, vy);
+    }
+}
 
 } // namespace Lumina

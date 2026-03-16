@@ -71,4 +71,12 @@ void Input::GetMousePosition(float* x, float* y) noexcept {
     if (y) *y = s_mouseY;
 }
 
+float Input::GetMouseX() noexcept {
+    return s_mouseX;
+}
+
+float Input::GetMouseY() noexcept {
+    return s_mouseY;
+}
+
 } // namespace Lumina

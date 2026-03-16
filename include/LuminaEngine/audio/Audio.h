@@ -24,6 +24,10 @@ public:
     
     // Master volume
     static void SetMasterVolume(float volume);
+    static float GetMasterVolume();
+    
+    // Stop all
+    static void StopAll();
 };
 
 } // namespace Lumina

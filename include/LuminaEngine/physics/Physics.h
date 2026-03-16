@@ -22,6 +22,7 @@ public:
     void Step(float deltaTime);
     
     void SetGravity(float x, float y);
+    std::pair<float, float> GetGravity() const;
     
     // Body creation (simplified interface)
     int CreateBody(float x, float y, bool isDynamic = true);

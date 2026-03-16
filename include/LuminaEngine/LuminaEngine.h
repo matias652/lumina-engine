@@ -9,6 +9,7 @@
 #include "core/Engine.h"
 
 // Graphics
+#include "graphics/Graphics.h"
 #include "graphics/Sprite.h"
 #include "graphics/TextureManager.h"
 

@@ -3,6 +3,9 @@
 #include "LuminaEngine/utils/Logger.h"
 #include "LuminaEngine/input/Input.h"
 #include "LuminaEngine/graphics/Sprite.h"
+#include "LuminaEngine/graphics/Graphics.h"
+#include "LuminaEngine/audio/Audio.h"
+#include "LuminaEngine/physics/Physics.h"
 #include "LuminaEngine/LuminaEngine.h"
 #include <sol/sol.hpp>
 #include <SDL3/SDL.h>
@@ -95,40 +98,283 @@ void ScriptEngine::RegisterBindings() {
     // Main 'Lumina' namespace
     auto lumina = (*m_lua)["Lumina"].get_or_create<sol::table>();
 
-    // --- Logger Bindings ---
-    auto log = lumina["Log"].get_or_create<sol::table>();
-    log.set_function("Info", [](const std::string& msg) { Logger::Info(msg); });
-    log.set_function("Warning", [](const std::string& msg) { Logger::Warning(msg); });
-    log.set_function("Error", [](const std::string& msg) { Logger::Error(msg); });
-    log.set_function("Debug", [](const std::string& msg) { Logger::Debug(msg); });
+    // =========================================================================
+    // Lumina.Version
+    // =========================================================================
+    auto version = lumina["Version"].get_or_create<sol::table>();
+    version.set_function("get", []() {
+        return std::string(
+            std::to_string(VERSION_MAJOR) + "." +
+            std::to_string(VERSION_MINOR) + "." +
+            std::to_string(VERSION_PATCH)
+        );
+    });
+    version.set_function("getMajor", []() { return VERSION_MAJOR; });
+    version.set_function("getMinor", []() { return VERSION_MINOR; });
+    version.set_function("getPatch", []() { return VERSION_PATCH; });
+    lumina["VERSION_MAJOR"] = VERSION_MAJOR;
+    lumina["VERSION_MINOR"] = VERSION_MINOR;
+    lumina["VERSION_PATCH"] = VERSION_PATCH;
 
-    // --- Input Bindings ---
+    // =========================================================================
+    // Lumina.Application
+    // =========================================================================
+    auto application = lumina["Application"].get_or_create<sol::table>();
+    application.set_function("quit", []() {
+        SDL_Event event;
+        event.type = SDL_EVENT_QUIT;
+        SDL_PushEvent(&event);
+    });
+    application.set_function("isRunning", [this]() {
+        return m_engine && m_engine->IsRunning();
+    });
+    application.set_function("loadScript", [this](const std::string& filename) {
+        if (m_engine && m_engine->IsRunning()) {
+            return m_engine->LoadScript(filename);
+        }
+        return false;
+    });
+
+    // =========================================================================
+    // Lumina.Time
+    // =========================================================================
+    auto time = lumina["Time"].get_or_create<sol::table>();
+    time.set_function("get", [this]() {
+        return m_engine ? m_engine->GetTime() : 0.0f;
+    });
+    time.set_function("getDelta", [this]() {
+        return m_engine ? m_engine->GetDeltaTime() : 0.0f;
+    });
+    time.set_function("getFPS", [this]() {
+        return m_engine ? m_engine->GetFPS() : 0.0f;
+    });
+
+    // =========================================================================
+    // Lumina.Window
+    // =========================================================================
+    auto window = lumina["Window"].get_or_create<sol::table>();
+    window.set_function("getSize", [this]() {
+        return std::make_tuple(m_engine->GetWidth(), m_engine->GetHeight());
+    });
+    window.set_function("setTitle", [this](const std::string& title) {
+        if (m_engine) m_engine->SetWindowTitle(title);
+    });
+    window.set_function("getTitle", [this]() {
+        return m_engine ? m_engine->GetWindowTitle() : std::string("");
+    });
+    window.set_function("setFullscreen", [this](bool enabled) {
+        if (m_engine) m_engine->SetFullscreen(enabled);
+    });
+    window.set_function("isFullscreen", [this]() {
+        return m_engine && m_engine->IsFullscreen();
+    });
+    window.set_function("minimize", [this]() {
+        if (m_engine) m_engine->MinimizeWindow();
+    });
+    window.set_function("maximize", [this]() {
+        if (m_engine) m_engine->MaximizeWindow();
+    });
+
+    // =========================================================================
+    // Lumina.Input
+    // =========================================================================
     auto input = lumina["Input"].get_or_create<sol::table>();
-    input.set_function("GetKey", &Input::GetKey);
-    input.set_function("GetKeyDown", &Input::GetKeyDown);
-    input.set_function("GetKeyUp", &Input::GetKeyUp);
-    input.set_function("GetMouseButton", &Input::GetMouseButton);
-    input.set_function("GetMouseButtonDown", &Input::GetMouseButtonDown);
-    input.set_function("GetMouseButtonUp", &Input::GetMouseButtonUp);
-    // Helper to return x, y directly to Lua
-    input.set_function("GetMousePosition", [](sol::this_state) {
+    input.set_function("getKey", &Input::GetKey);
+    input.set_function("getKeyDown", &Input::GetKeyDown);
+    input.set_function("getKeyUp", &Input::GetKeyUp);
+    input.set_function("getMouseButton", &Input::GetMouseButton);
+    input.set_function("getMouseButtonDown", &Input::GetMouseButtonDown);
+    input.set_function("getMouseButtonUp", &Input::GetMouseButtonUp);
+    input.set_function("getMousePosition", [](sol::this_state) {
         float x, y;
         Input::GetMousePosition(&x, &y);
         return std::make_tuple(x, y);
     });
-    // Direct helpers for X and Y
-    input.set_function("GetMouseX", [](sol::this_state) {
-        float x, y;
-        Input::GetMousePosition(&x, &y);
-        return x;
+    input.set_function("getMouseX", &Input::GetMouseX);
+    input.set_function("getMouseY", &Input::GetMouseY);
+
+    // =========================================================================
+    // Lumina.Graphics
+    // =========================================================================
+    auto graphics = lumina["Graphics"].get_or_create<sol::table>();
+    
+    // Clear and Present
+    graphics.set_function("clear", [](uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+        Graphics::Clear(r, g, b, a);
     });
-    input.set_function("GetMouseY", [](sol::this_state) {
-        float x, y;
-        Input::GetMousePosition(&x, &y);
-        return y;
+    graphics.set_function("present", []() {
+        Graphics::Present();
+    });
+    
+    // Primitives
+    graphics.set_function("drawPoint", [](float x, float y, uint32_t color) {
+        Graphics::DrawPoint(x, y, color);
+    });
+    graphics.set_function("drawLine", [](float x1, float y1, float x2, float y2, uint32_t color) {
+        Graphics::DrawLine(x1, y1, x2, y2, color);
+    });
+    graphics.set_function("drawRect", [](float x, float y, float w, float h, uint32_t color) {
+        Graphics::DrawRect(x, y, w, h, color);
+    });
+    graphics.set_function("drawRectFilled", [](float x, float y, float w, float h, uint32_t color) {
+        Graphics::DrawRectFilled(x, y, w, h, color);
+    });
+    graphics.set_function("drawCircle", [](float x, float y, float radius, uint32_t color) {
+        Graphics::DrawCircle(x, y, radius, color);
+    });
+    graphics.set_function("drawCircleFilled", [](float x, float y, float radius, uint32_t color) {
+        Graphics::DrawCircleFilled(x, y, radius, color);
+    });
+    graphics.set_function("drawTriangle", [](float x1, float y1, float x2, float y2, float x3, float y3, uint32_t color) {
+        Graphics::DrawTriangle(x1, y1, x2, y2, x3, y3, color);
+    });
+    graphics.set_function("drawTriangleFilled", [](float x1, float y1, float x2, float y2, float x3, float y3, uint32_t color) {
+        Graphics::DrawTriangleFilled(x1, y1, x2, y2, x3, y3, color);
+    });
+    
+    // Color utilities
+    graphics.set_function("color", [](uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+        return Graphics::Color(r, g, b, a);
+    });
+    graphics.set_function("colorRGB", [](uint8_t r, uint8_t g, uint8_t b) {
+        return Graphics::ColorRGB(r, g, b);
+    });
+    graphics.set_function("getColorR", &Graphics::GetColorR);
+    graphics.set_function("getColorG", &Graphics::GetColorG);
+    graphics.set_function("getColorB", &Graphics::GetColorB);
+    graphics.set_function("getColorA", &Graphics::GetColorA);
+    
+    // Blend modes
+    graphics.set_function("setBlendMode", &Graphics::SetBlendMode);
+    graphics.set_function("getBlendMode", &Graphics::GetBlendMode);
+    graphics.set_function("setAlpha", &Graphics::SetAlpha);
+    graphics.set_function("getAlpha", &Graphics::GetAlpha);
+    
+    // Camera/Viewport
+    graphics.set_function("setCamera", [](float x, float y) {
+        Graphics::SetCamera(x, y);
+    });
+    graphics.set_function("getCamera", [](sol::this_state) {
+        auto [x, y] = Graphics::GetCamera();
+        return std::make_tuple(x, y);
+    });
+    graphics.set_function("setZoom", &Graphics::SetZoom);
+    graphics.set_function("getZoom", &Graphics::GetZoom);
+    graphics.set_function("setViewport", [](int x, int y, int w, int h) {
+        Graphics::SetViewport(x, y, w, h);
+    });
+    graphics.set_function("getViewport", [](sol::this_state) {
+        auto [x, y, w, h] = Graphics::GetViewport();
+        return std::make_tuple(x, y, w, h);
+    });
+    
+    // Texture management
+    graphics.set_function("loadTexture", [](const std::string& filename) {
+        return Graphics::LoadTexture(filename);
+    });
+    graphics.set_function("unloadTexture", &Graphics::UnloadTexture);
+    graphics.set_function("drawTexture", [](int id, float x, float y) {
+        Graphics::DrawTexture(id, x, y);
+    });
+    graphics.set_function("drawTextureEx", [](int id, float x, float y, double angle, float scaleX, float scaleY, bool flipH, bool flipV) {
+        Graphics::DrawTextureEx(id, x, y, angle, scaleX, scaleY, flipH, flipV);
+    });
+    graphics.set_function("getTextureSize", [](int id) {
+        auto [w, h] = Graphics::GetTextureSize(id);
+        return std::make_tuple(w, h);
+    });
+    graphics.set_function("getTextureWidth", &Graphics::GetTextureWidth);
+    graphics.set_function("getTextureHeight", &Graphics::GetTextureHeight);
+    
+    // Sprite creation
+    graphics.set_function("createSprite", [](const std::string& filename) {
+        return Graphics::CreateSprite(filename);
+    });
+    
+    // Debug
+    graphics.set_function("drawGrid", [](float spacing, uint32_t color) {
+        Graphics::DrawGrid(spacing, color);
+    });
+    graphics.set_function("drawAxis", [](uint32_t colorX, uint32_t colorY) {
+        Graphics::DrawAxis(colorX, colorY);
     });
 
-    // --- Key Constants (Common subset) ---
+    // Sprite usertype
+    graphics.new_usertype<Sprite>("Sprite",
+        sol::constructors<Sprite(const std::string&)>(),
+        "SetPosition", &Sprite::SetPosition,
+        "SetScale", &Sprite::SetScale,
+        "SetRotation", &Sprite::SetRotation,
+        "SetRect", &Sprite::SetRect,
+        "Draw", &Sprite::Draw
+    );
+
+    // =========================================================================
+    // Lumina.Audio
+    // =========================================================================
+    auto audio = lumina["Audio"].get_or_create<sol::table>();
+    audio.set_function("loadSound", [](const char* filename) {
+        return AudioManager::LoadSound(filename);
+    });
+    audio.set_function("playSound", [](int id, float volume) {
+        AudioManager::PlaySound(id, volume);
+    });
+    audio.set_function("loadMusic", [](const char* filename) {
+        return AudioManager::LoadMusic(filename);
+    });
+    audio.set_function("playMusic", [](int id, bool loop) {
+        AudioManager::PlayMusic(id, loop);
+    });
+    audio.set_function("stopMusic", []() {
+        AudioManager::StopMusic();
+    });
+    audio.set_function("setMusicVolume", &AudioManager::SetMusicVolume);
+    audio.set_function("setMasterVolume", &AudioManager::SetMasterVolume);
+
+    // =========================================================================
+    // Lumina.Physics
+    // =========================================================================
+    auto physics = lumina["Physics"].get_or_create<sol::table>();
+    physics.set_function("setGravity", [](float x, float y) {
+        if (m_engine) m_engine->SetGravity(x, y);
+    });
+    physics.set_function("getGravity", [](sol::this_state) {
+        if (m_engine) {
+            return m_engine->GetGravity();
+        }
+        return std::make_tuple(0.0f, -9.8f);
+    });
+    physics.set_function("createBody", [](float x, float y, bool isDynamic) {
+        if (m_engine) return m_engine->CreateBody(x, y, isDynamic);
+        return -1;
+    });
+    physics.set_function("destroyBody", [](int bodyId) {
+        if (m_engine) m_engine->DestroyBody(bodyId);
+    });
+    physics.set_function("applyForce", [](int bodyId, float fx, float fy) {
+        if (m_engine) m_engine->ApplyForce(bodyId, fx, fy);
+    });
+    physics.set_function("applyImpulse", [](int bodyId, float ix, float iy) {
+        if (m_engine) m_engine->ApplyImpulse(bodyId, ix, iy);
+    });
+    physics.set_function("getPosition", [](int bodyId) {
+        if (m_engine) return m_engine->GetPosition(bodyId);
+        return std::make_tuple(0.0f, 0.0f);
+    });
+    physics.set_function("setPosition", [](int bodyId, float x, float y) {
+        if (m_engine) m_engine->SetPosition(bodyId, x, y);
+    });
+    physics.set_function("getVelocity", [](int bodyId) {
+        if (m_engine) return m_engine->GetVelocity(bodyId);
+        return std::make_tuple(0.0f, 0.0f);
+    });
+    physics.set_function("setVelocity", [](int bodyId, float vx, float vy) {
+        if (m_engine) m_engine->SetVelocity(bodyId, vx, vy);
+    });
+
+    // =========================================================================
+    // Lumina.Key (Constants)
+    // =========================================================================
     auto key = lumina["Key"].get_or_create<sol::table>();
     key["Space"] = SDL_SCANCODE_SPACE;
     key["Escape"] = SDL_SCANCODE_ESCAPE;
@@ -144,8 +390,6 @@ void ScriptEngine::RegisterBindings() {
     key["LShift"] = SDL_SCANCODE_LSHIFT;
     key["RShift"] = SDL_SCANCODE_RSHIFT;
     key["LCtrl"] = SDL_SCANCODE_LCTRL;
-    
-    // Numbers
     key["Alpha0"] = SDL_SCANCODE_0;
     key["Alpha1"] = SDL_SCANCODE_1;
     key["Alpha2"] = SDL_SCANCODE_2;
@@ -157,45 +401,15 @@ void ScriptEngine::RegisterBindings() {
     key["Alpha8"] = SDL_SCANCODE_8;
     key["Alpha9"] = SDL_SCANCODE_9;
 
-    // --- Version ---
-    lumina.set_function("getVersion", []() {
-        return std::string(
-            std::to_string(VERSION_MAJOR) + "." +
-            std::to_string(VERSION_MINOR) + "." +
-            std::to_string(VERSION_PATCH)
-        );
-    });
-    lumina["VERSION_MAJOR"] = VERSION_MAJOR;
-    lumina["VERSION_MINOR"] = VERSION_MINOR;
-    lumina["VERSION_PATCH"] = VERSION_PATCH;
-
-    // --- Engine Control ---
-    lumina.set_function("Quit", []() {
-        SDL_Event event;
-        event.type = SDL_EVENT_QUIT;
-        SDL_PushEvent(&event);
-    });
-    
-    lumina.set_function("GetWindowSize", [this]() {
-        return std::make_tuple(m_engine->GetWidth(), m_engine->GetHeight());
-    });
-
-    // --- Time ---
-    lumina.set_function("GetTime", []() {
-        return static_cast<double>(SDL_GetTicks()) / 1000.0;
-    });
-
-    // --- Graphics ---
-    auto graphics = lumina["Graphics"].get_or_create<sol::table>();
-    
-    graphics.new_usertype<Sprite>("Sprite",
-        sol::constructors<Sprite(const std::string&)>(),
-        "SetPosition", &Sprite::SetPosition,
-        "SetScale", &Sprite::SetScale,
-        "SetRotation", &Sprite::SetRotation,
-        "SetRect", &Sprite::SetRect,
-        "Draw", &Sprite::Draw
-    );
+    // =========================================================================
+    // Lumina.Mouse (Constants)
+    // =========================================================================
+    auto mouse = lumina["Mouse"].get_or_create<sol::table>();
+    mouse["Left"] = SDL_BUTTON_LEFT;
+    mouse["Right"] = SDL_BUTTON_RIGHT;
+    mouse["Middle"] = SDL_BUTTON_MIDDLE;
+    mouse["X1"] = SDL_BUTTON_X1;
+    mouse["X2"] = SDL_BUTTON_X2;
 }
 
 }

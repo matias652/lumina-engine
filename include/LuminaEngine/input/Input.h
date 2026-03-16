@@ -21,6 +21,8 @@ public:
     static bool GetMouseButtonDown(Uint8 button) noexcept;
     static bool GetMouseButtonUp(Uint8 button) noexcept;
     static void GetMousePosition(float* x, float* y) noexcept;
+    static float GetMouseX() noexcept;
+    static float GetMouseY() noexcept;
 
 private:
     static const bool* s_keyboardState;

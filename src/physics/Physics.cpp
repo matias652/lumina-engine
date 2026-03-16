@@ -55,6 +55,16 @@ void PhysicsWorld::SetGravity(float x, float y) {
 #endif
 }
 
+std::pair<float, float> PhysicsWorld::GetGravity() const {
+#ifdef BOX2D_AVAILABLE
+    if (m_world) {
+        b2Vec2 g = m_world->GetGravity();
+        return {g.x, g.y};
+    }
+#endif
+    return {0.0f, -9.8f};
+}
+
 int PhysicsWorld::CreateBody(float /*x*/, float /*y*/, bool /*isDynamic*/) {
     // TODO: Implement body creation
     return -1;
