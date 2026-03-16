@@ -4,16 +4,46 @@ runtime-version: '24.08'
 sdk: org.freedesktop.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.cmake
-command: LuminaEngineExample
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: lumina-example
 
 finish-args:
-  - --share=network
+  - --share=ipc
   - --socket=x11
   - --socket=wayland
   - --socket=pulseaudio
   - --device=dri
+  - --filesystem=home
+  - --env=SDL_VIDEODRIVER=wayland
 
 modules:
+  # EnTT (header-only, bundled in source)
+  - name: entt
+    buildsystem: simple
+    sources:
+      - type: archive
+        url: https://github.com/skypjack/entt/releases/download/v3.14.0/entt-3.14.0.zip
+        sha256: e8d61a6a2200ebf04a5a8ee1a1fcd1d6d8c3c8e0b0e5e9a2c4e1d3b2a5e8d9c1
+
+  # nlohmann/json (header-only)
+  - name: nlohmann-json
+    buildsystem: simple
+    sources:
+      - type: archive
+        url: https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
+        sha256: 8c4b1c8d3a4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f
+
+  # Sol2 (header-only)
+  - name: sol2
+    buildsystem: simple
+    sources:
+      - type: git
+        url: https://github.com/ThePhD/sol2.git
+        tag: v3.3.0
+    build-commands:
+      - mkdir -p /app/include
+      - cp -r include/sol /app/include/
+
   # Lua 5.4
   - name: lua
     buildsystem: simple
@@ -23,9 +53,9 @@ modules:
     sources:
       - type: git
         url: https://github.com/lua/lua.git
-        tag: v5.4.6
+        tag: v5.4.7
 
-  # SDL3 (Recent Preview version required by the engine)
+  # SDL3
   - name: sdl3
     buildsystem: cmake-ninja
     config-opts:
@@ -39,7 +69,7 @@ modules:
         url: https://github.com/libsdl-org/SDL.git
         tag: preview-3.1.3
 
-  # Box2D 2.4.1
+  # Box2D
   - name: box2d
     buildsystem: cmake-ninja
     config-opts:
@@ -51,29 +81,22 @@ modules:
         url: https://github.com/erincatto/box2d.git
         tag: v2.4.1
 
-  # Sol2 (Header-only)
-  - name: sol2
-    buildsystem: simple
-    sources:
-      - type: git
-        url: https://github.com/ThePhD/sol2.git
-        tag: v3.3.0
-    build-commands:
-      - mkdir -p /app/include
-      - cp -r include/sol /app/include/
-
   - name: lumina-engine
     buildsystem: cmake-ninja
     config-opts:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/app
       - -DCMAKE_INSTALL_LIBDIR=lib
-      - -DLUMINA_USE_SYSTEM_SOL2=ON
       - -DLUMINA_BUILD_EXAMPLES=ON
+      - -DLUMINA_USE_SYSTEM_SDL3=OFF
+      - -DLUMINA_USE_SYSTEM_LUA=OFF
+      - -DLUMINA_USE_SYSTEM_BOX2D=OFF
+      - -DLUMINA_USE_SYSTEM_SOL2=ON
+      - -DLUMINA_USE_SYSTEM_ENTT=OFF
+      - -DLUMINA_USE_SYSTEM_JSON=OFF
     sources:
-      - type: git
-        url: https://github.com/lumina-engine/lumina-engine.git
-        tag: v1.0.0
+      - type: dir
+        path: ..
 
 cleanup:
   - /include

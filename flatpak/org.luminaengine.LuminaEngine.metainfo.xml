@@ -7,26 +7,64 @@
   <summary>A lightweight and versatile C++ game engine</summary>
   <description>
     <p>
-      Lumina Engine is a modern, lightweight, and high-performance game engine developed in C++.
-      Designed with modularity and ease of use in mind, it provides a robust foundation for creating
-      2D games and interactive applications.
+      Lumina Engine is a modern, lightweight, and high-performance 2D game engine 
+      developed in C++. Designed with modularity and ease of use in mind, it provides 
+      a robust foundation for creating games and interactive applications.
     </p>
-    <p>
-      The engine offers a comprehensive suite of tools for developers, including:
-    </p>
+    <p>Features include:</p>
     <ul>
-      <li>High-performance 2D rendering system optimized for speed and visual fidelity.</li>
-      <li>Integrated 2D physics engine for realistic collision detection and simulations.</li>
-      <li>Flexible scripting support allowing for rapid prototyping and game logic implementation.</li>
-      <li>Cross-platform architecture designed to run smoothly on modern Linux environments.</li>
+      <li>High-performance 2D rendering with SDL3</li>
+      <li>Integrated Box2D physics engine</li>
+      <li>Flexible Lua scripting support via sol2</li>
+      <li>Entity Component System (ECS) with EnTT</li>
+      <li>JSON serialization with nlohmann/json</li>
+      <li>Cross-platform (Linux, Windows, macOS)</li>
     </ul>
+    <p>
+      Perfect for hobbyists and indie developers looking for a simple yet powerful 
+      engine to create 2D games.
+    </p>
   </description>
   <launchable type="desktop-id">org.luminaengine.LuminaEngine.desktop</launchable>
   <url type="homepage">https://github.com/lumina-engine/lumina-engine</url>
   <url type="bugtracker">https://github.com/lumina-engine/lumina-engine/issues</url>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Lumina Engine Demo</caption>
+    </screenshot>
+  </screenshots>
   <content_rating type="oars-1.1" />
   <releases>
-    <release version="1.0.0" date="2025-01-11" />
+    <release version="1.0.0" date="2026-01-30">
+      <description>
+        <p>Initial release with core features:</p>
+        <ul>
+          <li>SDL3 windowing and rendering</li>
+          <li>Box2D physics integration</li>
+          <li>Lua scripting with sol2</li>
+          <li>Sprite and texture management</li>
+          <li>Input handling system</li>
+        </ul>
+      </description>
+    </release>
   </releases>
+  <categories>
+    <category>Development</category>
+    <category>Game</category>
+  </categories>
+  <keywords>
+    <keyword>game</keyword>
+    <keyword>engine</keyword>
+    <keyword>cpp</keyword>
+    <keyword>c++</keyword>
+    <keyword>lua</keyword>
+    <keyword>sdl3</keyword>
+    <keyword>2d</keyword>
+    <keyword>physics</keyword>
+    <keyword>gamedev</keyword>
+  </keywords>
   <developer_name>Lumina Engine Community</developer_name>
+  <provides>
+    <binary>lumina-example</binary>
+  </provides>
 </component>

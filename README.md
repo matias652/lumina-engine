@@ -319,6 +319,21 @@ Comprehensive documentation is available in the `docs/` directory:
 | [Scripting Guide](docs/SCRIPTING_GUIDE.md) | Lua scripting API and examples |
 | [API Reference](docs/API_REFERENCE.md) | Complete C++ API reference |
 | [Physics Guide](docs/PHYSICS_GUIDE.md) | Box2D physics integration |
+| [Flatpak Guide](docs/FLATPAK_GUIDE.md) | Building and distributing Flatpak |
+
+## Distribution
+
+### Flatpak
+
+Lumina Engine is available as a Flatpak for easy Linux distribution:
+
+```bash
+# Install from Flathub (once published)
+flatpak install flathub org.luminaengine.LuminaEngine
+flatpak run org.luminaengine.LuminaEngine
+```
+
+For building from source, see [Flatpak Guide](docs/FLATPAK_GUIDE.md).
 
 ## Main API
 

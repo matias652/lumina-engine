@@ -1,10 +1,11 @@
 [Desktop Entry]
 Type=Application
 Name=Lumina Engine
-Comment=Motor de juego C++ con SDL3 y Lua
-Exec=LuminaEngineExample
+Comment=A lightweight and versatile C++ game engine with SDL3 and Lua scripting
+Exec=lumina-example
 Icon=org.luminaengine.LuminaEngine
 Terminal=false
-Categories=Development;Game;
-Keywords=game;engine;cpp;lua;sdl3;
+Categories=Development;Game;Engine;
+Keywords=game;engine;cpp;lua;sdl3;2d;physics;
 StartupNotify=true
+StartupWMClass=lumina-example
