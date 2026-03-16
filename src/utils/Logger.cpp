@@ -37,7 +37,13 @@ void Logger::Log(LogLevel level, const std::string& message) {
     
     auto now = std::chrono::system_clock::now();
     std::time_t time = std::chrono::system_clock::to_time_t(now);
-    std::tm tm = *std::localtime(&time);
+    std::tm tm{};
+    // Use thread-safe variants: localtime_r (POSIX) / localtime_s (MSVC)
+#if defined(_WIN32)
+    localtime_s(&tm, &time);
+#else
+    localtime_r(&time, &tm);
+#endif
 
     const char* color = "";
     const char* reset = "\033[0m";

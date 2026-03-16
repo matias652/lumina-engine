@@ -1,30 +1,33 @@
 #include "LuminaEngine/graphics/TextureManager.h"
 #include "LuminaEngine/utils/Logger.h"
+#include <cassert>
 
 namespace Lumina {
 
-static TextureManager* s_instance = nullptr;
+// Meyer's singleton: constructed once, lives for the duration of the program.
+// Init() must be called before any texture operations.
+static TextureManager& GetInstance() {
+    static TextureManager instance;
+    return instance;
+}
 
 void TextureManager::Init(SDL_Renderer* renderer) {
-    if (!s_instance) {
-        s_instance = new TextureManager();
-    }
-    s_instance->m_renderer = renderer;
+    GetInstance().m_renderer = renderer;
 }
 
 void TextureManager::Shutdown() {
-    if (s_instance) {
-        for (auto& pair : s_instance->m_textures) {
-            SDL_DestroyTexture(pair.second);
-        }
-        s_instance->m_textures.clear();
-        delete s_instance;
-        s_instance = nullptr;
+    TextureManager& mgr = GetInstance();
+    for (auto& pair : mgr.m_textures) {
+        SDL_DestroyTexture(pair.second);
     }
+    mgr.m_textures.clear();
+    mgr.m_renderer = nullptr;
 }
 
 TextureManager& TextureManager::Instance() {
-    return *s_instance;
+    TextureManager& mgr = GetInstance();
+    assert(mgr.m_renderer != nullptr && "TextureManager::Instance() called before Init()");
+    return mgr;
 }
 
 SDL_Texture* TextureManager::LoadTexture(const std::string& filename) {

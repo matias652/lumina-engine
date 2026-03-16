@@ -33,8 +33,7 @@ void Sprite::SetRect(int x, int y, int w, int h) {
 void Sprite::Draw() {
     if (!m_texture) return;
 
-    static TextureManager& textureManager = TextureManager::Instance();
-    SDL_Renderer* renderer = textureManager.GetRenderer();
+    SDL_Renderer* renderer = TextureManager::Instance().GetRenderer();
     
     float w, h;
     if (m_hasSrcRect) {

@@ -3,6 +3,7 @@
 #include "LuminaEngine/utils/Logger.h"
 #include "LuminaEngine/input/Input.h"
 #include "LuminaEngine/graphics/Sprite.h"
+#include "LuminaEngine/LuminaEngine.h"
 #include <sol/sol.hpp>
 #include <SDL3/SDL.h>
 
@@ -30,6 +31,7 @@ void ScriptEngine::Initialize(Engine* engine) {
 
     m_engine = engine;
     m_lua = std::make_unique<sol::state>();
+    m_impl = std::make_unique<Impl>();
     
     // Load base Lua libraries
     m_lua->open_libraries(sol::lib::base, sol::lib::package, sol::lib::math, sol::lib::string, sol::lib::table, sol::lib::os);
@@ -44,8 +46,9 @@ void ScriptEngine::Shutdown() {
     if (m_lua) {
         m_lua.reset();
     }
+    // Reset impl to release cached Lua function references.
+    // Do not reallocate — if Initialize() is called again it will create a fresh Impl.
     m_impl.reset();
-    m_impl = std::make_unique<Impl>();
     m_engine = nullptr;
     m_initialized = false;
 }
@@ -69,7 +72,7 @@ bool ScriptEngine::LoadScript(const std::string& filename) {
 }
 
 void ScriptEngine::Update(float dt) {
-    if (!m_initialized || !m_impl->onUpdate.valid()) return;
+    if (!m_initialized || !m_impl || !m_impl->onUpdate.valid()) return;
 
     auto result = m_impl->onUpdate(dt);
     if (!result.valid()) {
@@ -79,7 +82,7 @@ void ScriptEngine::Update(float dt) {
 }
 
 void ScriptEngine::Render() {
-    if (!m_initialized || !m_impl->onRender.valid()) return;
+    if (!m_initialized || !m_impl || !m_impl->onRender.valid()) return;
 
     auto result = m_impl->onRender();
     if (!result.valid()) {
@@ -153,6 +156,18 @@ void ScriptEngine::RegisterBindings() {
     key["Alpha7"] = SDL_SCANCODE_7;
     key["Alpha8"] = SDL_SCANCODE_8;
     key["Alpha9"] = SDL_SCANCODE_9;
+
+    // --- Version ---
+    lumina.set_function("getVersion", []() {
+        return std::string(
+            std::to_string(VERSION_MAJOR) + "." +
+            std::to_string(VERSION_MINOR) + "." +
+            std::to_string(VERSION_PATCH)
+        );
+    });
+    lumina["VERSION_MAJOR"] = VERSION_MAJOR;
+    lumina["VERSION_MINOR"] = VERSION_MINOR;
+    lumina["VERSION_PATCH"] = VERSION_PATCH;
 
     // --- Engine Control ---
     lumina.set_function("Quit", []() {

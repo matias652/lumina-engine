@@ -16,8 +16,7 @@ namespace Lumina {
 
 namespace Lumina {
 
-// Forward declaration for physics implementation
-class PhysicsWorldImpl;
+class PhysicsWorld;
 
 class Engine {
 public:
@@ -46,6 +45,7 @@ public:
 
 private:
     bool m_isRunning;
+    bool m_initialized;
     int m_width;
     int m_height;
     std::string m_windowTitle;
@@ -54,10 +54,11 @@ private:
     SDL_Window* m_window;
     SDL_Renderer* m_renderer;
     
-    // Box2D physics world (uses opaque pointer pattern)
-    #ifdef BOX2D_AVAILABLE
-    void* m_physicsWorld; // b2World* - managed manually to avoid incomplete type issues
-    #endif
+    // Physics world (Box2D wrapper)
+    std::unique_ptr<PhysicsWorld> m_physicsWorld;
+
+    // Physics fixed-timestep accumulator
+    float m_physicsAccumulator;
     
     // Scripting (Lua/sol2)
     #ifdef LUA_AVAILABLE

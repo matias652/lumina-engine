@@ -43,7 +43,6 @@ Create a file named `main.cpp` with the following content:
 
 ```cpp
 #include <LuminaEngine/LuminaEngine.h>
-#include <LuminaEngine/core/Engine.h>
 #include <iostream>
 
 int main() {

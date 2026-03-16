@@ -3,6 +3,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_render.h>
 #include "LuminaEngine/graphics/TextureManager.h"
+#include "LuminaEngine/physics/Physics.h"
 
 #ifdef LUMINA_GLES_AVAILABLE
 #include <GLES3/gl3.h>
@@ -10,10 +11,6 @@
 
 #ifdef LUA_AVAILABLE
 #include "LuminaEngine/scripting/ScriptEngine.h"
-#endif
-
-#ifdef BOX2D_AVAILABLE
-#include <box2d/box2d.h>
 #endif
 
 #include "LuminaEngine/utils/Logger.h"
@@ -26,17 +23,17 @@ static SDL_GLContext s_glContext = nullptr;
 
 Engine::Engine() 
     : m_isRunning(false)
+    , m_initialized(false)
     , m_width(1280)
     , m_height(720)
     , m_windowTitle("Lumina Engine")
     , m_window(nullptr)
     , m_renderer(nullptr)
+    , m_physicsWorld(std::make_unique<PhysicsWorld>())
+    , m_physicsAccumulator(0.0f)
     , m_lastFrameTime(0)
     , m_deltaTime(0.0f)
 {
-    #ifdef BOX2D_AVAILABLE
-    m_physicsWorld = nullptr;
-    #endif
     #ifdef LUA_AVAILABLE
     m_scriptEngine = std::make_unique<ScriptEngine>();
     #endif
@@ -50,6 +47,12 @@ bool Engine::Initialize(const std::string& windowTitle, int width, int height) {
     m_windowTitle = windowTitle;
     m_width = width;
     m_height = height;
+
+    // Enable logging at Info level by default so engine messages are visible.
+    // Users can call Logger::Initialize() again before this to set a custom level.
+    if (!Logger::IsEnabled()) {
+        Logger::Initialize(true, LogLevel::Info);
+    }
 
     // Initialize SDL3
     if (!SDL_Init(SDL_INIT_VIDEO)) {
@@ -101,13 +104,8 @@ bool Engine::Initialize(const std::string& windowTitle, int width, int height) {
     // Initialize TextureManager
     TextureManager::Init(m_renderer);
 
-    // Initialize Box2D
-    #ifdef BOX2D_AVAILABLE
-    if (m_physicsWorld == nullptr) {
-        b2Vec2 gravity(0.0f, -9.8f);
-        m_physicsWorld = new b2World(gravity);
-    }
-    #endif
+    // Initialize physics world
+    m_physicsWorld->Init(0.0f, -9.8f);
 
     // Initialize ScriptEngine (Lua/sol2)
     #ifdef LUA_AVAILABLE
@@ -122,6 +120,7 @@ bool Engine::Initialize(const std::string& windowTitle, int width, int height) {
     LUMINA_LOG_INFO("Engine initialized successfully.");
     m_lastFrameTime = SDL_GetPerformanceCounter();
     m_isRunning = true;
+    m_initialized = true;
     
     return true;
 }
@@ -178,15 +177,14 @@ void Engine::ProcessEvents() {
 }
 
 void Engine::Update(float deltaTime) {
-    // Update physics
-    #ifdef BOX2D_AVAILABLE
-    if (m_physicsWorld) {
-        b2World* world = static_cast<b2World*>(m_physicsWorld);
-        constexpr int32 velocityIterations = 6;
-        constexpr int32 positionIterations = 2;
-        world->Step(deltaTime, velocityIterations, positionIterations);
+    // Update physics with a fixed timestep accumulator to ensure stable simulation.
+    // Box2D requires a consistent step size; variable deltas cause tunnelling and jitter.
+    constexpr float FIXED_STEP = 1.0f / 60.0f;
+    m_physicsAccumulator += deltaTime;
+    while (m_physicsAccumulator >= FIXED_STEP) {
+        m_physicsWorld->Step(FIXED_STEP);
+        m_physicsAccumulator -= FIXED_STEP;
     }
-    #endif
     
     // Update scripts
     #ifdef LUA_AVAILABLE
@@ -208,13 +206,6 @@ void Engine::Render() {
     }
     #endif
     
-    // Render a simple rectangle as a test
-    const float rectX = static_cast<float>(m_width) / 2.0f - 50.0f;
-    const float rectY = static_cast<float>(m_height) / 2.0f - 50.0f;
-    SDL_FRect rect = {rectX, rectY, 100.0f, 100.0f};
-    SDL_SetRenderDrawColor(m_renderer, 100, 150, 255, 255);
-    SDL_RenderFillRect(m_renderer, &rect);
-
     // Render scripts (Sprites)
     #ifdef LUA_AVAILABLE
     if (m_scriptEngine) {
@@ -237,9 +228,11 @@ float Engine::CalculateDeltaTime() {
 }
 
 void Engine::Shutdown() {
-    if (!m_isRunning) {
+    if (!m_initialized) {
         return;
     }
+    m_initialized = false;
+    m_isRunning = false;
 
     #ifdef LUMINA_GLES_AVAILABLE
     if (s_glContext) {
@@ -259,13 +252,11 @@ void Engine::Shutdown() {
     }
     #endif
 
-    // Clean up Box2D
-    #ifdef BOX2D_AVAILABLE
+    // Clean up physics world
     if (m_physicsWorld) {
-        delete static_cast<b2World*>(m_physicsWorld);
-        m_physicsWorld = nullptr;
+        m_physicsWorld->Shutdown();
+        m_physicsWorld.reset();
     }
-    #endif
     
     // Clean up SDL3
     if (m_renderer) {
@@ -279,7 +270,6 @@ void Engine::Shutdown() {
     }
     
     SDL_Quit();
-    m_isRunning = false;
 }
 
 #ifdef LUA_AVAILABLE

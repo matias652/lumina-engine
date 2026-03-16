@@ -135,7 +135,7 @@ else()
     FetchContent_Declare(
         sol2
         GIT_REPOSITORY https://github.com/ThePhD/sol2.git
-        GIT_TAG        main
+        GIT_TAG        v3.3.0
         GIT_SHALLOW    TRUE
     )
     FetchContent_MakeAvailable(sol2)
@@ -202,6 +202,8 @@ set(FRAMEWORK_SOURCES
     "${SOURCE_DIR}/input/Input.cpp"
     "${SOURCE_DIR}/graphics/TextureManager.cpp"
     "${SOURCE_DIR}/graphics/Sprite.cpp"
+    "${SOURCE_DIR}/audio/Audio.cpp"
+    "${SOURCE_DIR}/physics/Physics.cpp"
 )
 
 if(LUA_AVAILABLE)
@@ -240,9 +242,13 @@ target_compile_definitions(LuminaEngine PUBLIC LUMINA_LOGGING_ENABLED)
 target_link_libraries(LuminaEngine
     PUBLIC
         ${SDL3_LIBRARIES}
-    PRIVATE
+    INTERFACE
+        # EnTT and nlohmann_json are available for consumers to use.
+        # They are not yet used internally by LuminaEngine, so INTERFACE
+        # avoids inflating the library's own link requirements.
         $<BUILD_INTERFACE:EnTT::EnTT>
         $<BUILD_INTERFACE:nlohmann_json::nlohmann_json>
+    PRIVATE
         ${SDL3_CFLAGS_OTHER}
 )
 

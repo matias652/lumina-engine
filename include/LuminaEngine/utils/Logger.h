@@ -4,6 +4,8 @@
 #include <fstream>
 #include <memory>
 #include <cstdint>
+#include <cstdarg>
+#include <vector>
 
 namespace Lumina {
 
@@ -63,9 +65,13 @@ private:
         if constexpr (sizeof...(args) == 0) {
             return fmt;
         } else {
-            char buffer[1024];
-            std::snprintf(buffer, sizeof(buffer), fmt.c_str(), std::forward<Args>(args)...);
-            return std::string(buffer);
+            // Two-pass sizing: first call measures required length, second fills the buffer.
+            // This avoids silent truncation that a fixed-size stack buffer would cause.
+            const int needed = std::snprintf(nullptr, 0, fmt.c_str(), args...);
+            if (needed <= 0) return fmt;
+            std::vector<char> buffer(static_cast<std::size_t>(needed) + 1);
+            std::snprintf(buffer.data(), buffer.size(), fmt.c_str(), args...);
+            return std::string(buffer.data(), static_cast<std::size_t>(needed));
         }
     }
     
