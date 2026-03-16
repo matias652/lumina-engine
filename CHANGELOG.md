@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/en/2.0.0/).
 
+## [Unreleased]
+
+### Added
+- **API_REFERENCE.md** - Complete C++ API reference documentation
+- **PHYSICS_GUIDE.md** - Box2D physics integration guide
+
+### Improved
+- **README.md** - Enhanced with table of contents, build options table, better examples, cross-platform instructions
+- **GETTING_STARTED.md** - Added troubleshooting section, platform-specific setup, more detailed examples
+- **SCRIPTING_GUIDE.md** - Expanded with complete Lua API documentation, more examples
+
 ## [1.0.0] - 2026-01-30
 
 ### Added

@@ -1,59 +1,127 @@
 # Lumina Engine
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/badge/Version-1.0.0-blue.svg)](https://github.com/lumina-engine/lumina-engine/releases)
 [![CI](https://github.com/lumina-engine/lumina-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/lumina-engine/lumina-engine/actions/workflows/ci.yml)
 [![C++ Standard](https://img.shields.io/badge/C++-17-blue.svg)](https://en.cppreference.com/w/cpp/17)
+[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey.svg)](https://github.com/lumina-engine/lumina-engine)
 
-A C++ game engine built from scratch with SDL3, Box2D, and Lua scripting (sol2).
+A modern C++ game engine built from scratch with SDL3, Box2D, and Lua scripting (sol2).
 
 > [!IMPORTANT]
 > **Beta Version**: Lumina Engine is currently in its beta stage. I am fully aware that there is still a long way to go before it becomes a complete, production-ready framework. Your patience and feedback are greatly appreciated!
 
-## 🌟 Join the Journey
+## Table of Contents
 
-I'm passionate about building this engine using **Antigravity**, and I'd love to have you involved!
-- **Contribute**: I would be absolutely thrilled if you could contribute in any way—whether it's fixing bugs, adding features, or improving documentation.
-- **Follow the development**: I will soon be launching a **YouTube channel** and an **Instagram account** where I'll be documenting the entire development process, sharing devlogs, and showing how the engine evolves. Stay tuned!
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Requirements](#requirements)
+- [Installation](#installation)
+  - [Installing Dependencies](#installing-dependencies)
+  - [Building the Engine](#building-the-engine)
+  - [Build Options](#build-options)
+- [Using as a Framework](#using-as-a-framework)
+- [Project Structure](#project-structure)
+- [Documentation](#documentation)
+- [Main API](#main-api)
+  - [C++ Interface](#c++-interface)
+  - [Lua Interface](#lua-interface)
+- [Optimizations](#optimizations)
+- [Project Status](#project-status)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Quick Start
+
+```bash
+# Clone the repository
+git clone https://github.com/lumina-engine/lumina-engine.git
+cd lumina-engine
+
+# Build
+mkdir build && cd build
+cmake ..
+make
+
+# Run examples
+./bin/lumina_example
+```
 
 ## Features
 
-- 🎮 **SDL3**: High-performance windowing, rendering, and event system
-- 🎲 **Box2D**: 2D physics engine (optional)
-- 📜 **Lua/sol2**: Integrated scripting system
-- 🧩 **EnTT**: Fast and modern Entity Component System (ECS)
-- 📋 **JSON**: Serialization and configuration with nlohmann/json
-- 🚀 **Performance**: Optimized for high efficiency
-- 📦 **Framework**: Designed as a reusable library
-- 🔧 **CMake**: Modern and flexible build system
+| Category | Feature | Description |
+|----------|---------|-------------|
+| **Windowing** | SDL3 Integration | High-performance windowing, rendering, and event system |
+| **Physics** | Box2D | 2D physics engine (optional, can be disabled) |
+| **Scripting** | Lua/sol2 | Integrated scripting system for game logic |
+| **ECS** | EnTT | Fast and modern Entity Component System |
+| **Serialization** | JSON | Configuration and save data with nlohmann/json |
+| **Graphics** | SDL3 Renderer | Hardware-accelerated 2D rendering |
+| **Input** | Keyboard/Mouse | Complete input handling system |
+| **Build** | CMake | Modern and flexible build system |
+
+### Key Capabilities
+
+- **Cross-platform**: Linux, Windows, macOS support
+- **Zero-dependency core**: Most dependencies auto-downloaded via FetchContent
+- **Performance optimized**: Release builds use `-O3 -march=native`
+- **Header-only libraries**: EnTT, nlohmann/json included automatically
+- **Framework design**: Built as a reusable library
 
 ## Requirements
 
-- **C++ Compiler**: GCC 7.0+, Clang 5.0+, or MSVC 2017+ (requires C++17)
-- **CMake**: Version 3.14 or higher
-- **SDL3**: Low-level library for graphics and audio
-- **Lua**: Version 5.4+ (for scripting)
-- **Box2D**: 2D physics engine (optional)
-- **EnTT**: ECS framework (header-only)
-- **nlohmann/json**: JSON library (header-only)
+### System Requirements
+
+| Requirement | Minimum Version | Notes |
+|-------------|-----------------|-------|
+| **C++ Compiler** | GCC 7.0+, Clang 5.0+, or MSVC 2017+ | Must support C++17 |
+| **CMake** | 3.14+ | Build system |
+| **SDL3** | Latest | Graphics and windowing |
+| **Lua** | 5.4+ | Scripting runtime |
+| **Box2D** | Latest | Physics (optional) |
+
+### Auto-downloaded Dependencies
+
+These libraries are automatically downloaded during CMake configuration if not found on your system:
+- **sol2** - Lua C++ bindings (header-only)
+- **EnTT** - Entity Component System (header-only)
+- **nlohmann/json** - JSON library (header-only)
 
 ### Installing Dependencies
 
 #### Arch Linux
+
 ```bash
 sudo pacman -S sdl3 lua box2d cmake
 ```
 
 #### Ubuntu/Debian
+
 ```bash
 sudo apt-get install libsdl3-dev liblua5.4-dev libbox2d-dev cmake
 ```
 
 #### Fedora
+
 ```bash
 sudo dnf install SDL3-devel lua-devel box2d-devel cmake
 ```
 
-**Note**: Most dependencies (sol2, EnTT, nlohmann/json) are automatically downloaded during compilation using CMake's FetchContent if they are not found on your system.
+#### macOS (Homebrew)
+
+```bash
+brew install sdl3 lua box2d cmake
+```
+
+#### Windows
+
+Install via [vcpkg](https://github.com/microsoft/vcpkg) or download precompiled binaries:
+```bash
+vcpkg install sdl3:x64-windows lua:x64-windows box2d:x64-windows
+```
+
+> **Note**: Most dependencies (sol2, EnTT, nlohmann/json) are automatically downloaded during compilation using CMake's FetchContent if they are not found on your system.
 
 ## Compilation
 
@@ -68,11 +136,21 @@ make
 
 ### Build Options
 
+| Option | Description | Default |
+|--------|-------------|---------|
+| `CMAKE_BUILD_TYPE` | Build type: Debug, Release, RelWithDebInfo, MinSizeRel | Release |
+| `LUMINA_BUILD_SHARED_LIBS` | Build as shared library | OFF |
+| `LUMINA_BUILD_EXAMPLES` | Build example applications | ON |
+| `LUMINA_ENABLE_PHYSICS` | Enable Box2D physics support | ON |
+| `LUMINA_ENABLE_LOGGING` | Enable logging system | OFF |
+
+#### Build Examples
+
 ```bash
-# Release Mode (optimized)
+# Release Mode (optimized, default)
 cmake -DCMAKE_BUILD_TYPE=Release ..
 
-# Debug Mode
+# Debug Mode with symbols
 cmake -DCMAKE_BUILD_TYPE=Debug ..
 
 # Build as shared library
@@ -80,6 +158,12 @@ cmake -DLUMINA_BUILD_SHARED_LIBS=ON ..
 
 # Disable examples
 cmake -DLUMINA_BUILD_EXAMPLES=OFF ..
+
+# Enable physics (default)
+cmake -DLUMINA_ENABLE_PHYSICS=ON ..
+
+# Enable logging for debugging
+cmake -DLUMINA_ENABLE_LOGGING=ON -DCMAKE_BUILD_TYPE=Debug ..
 ```
 
 ### Installation
@@ -91,29 +175,74 @@ cmake --install . --prefix /usr/local
 
 ## Using as a Framework
 
-### CMake (recommended)
+### CMake Integration (Recommended)
+
+#### Option 1: Installed Package
 
 In your `CMakeLists.txt`:
 
 ```cmake
+cmake_minimum_required(VERSION 3.14)
+project(MyGame)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 find_package(LuminaEngine REQUIRED)
 
-target_link_libraries(your_game PRIVATE LuminaEngine::LuminaEngine)
+add_executable(MyGame main.cpp)
+target_link_libraries(MyGame PRIVATE LuminaEngine::LuminaEngine)
 ```
 
-### C++ Code
+#### Option 2: Subdirectory
+
+Add Lumina Engine as a subdirectory in your project:
+
+```cmake
+# In your game's CMakeLists.txt
+add_subdirectory(lumina-engine)
+
+add_executable(MyGame main.cpp)
+target_link_libraries(MyGame PRIVATE LuminaEngine::LuminaEngine)
+```
+
+#### Option 3: vcpkg
+
+```bash
+vcpkg install lumina-engine
+```
+
+Then in CMake:
+```cmake
+find_package(LuminaEngine REQUIRED)
+target_link_libraries(MyGame PRIVATE LuminaEngine::LuminaEngine)
+```
+
+### C++ Code Example
 
 ```cpp
-#include "LuminaEngine/LuminaEngine.h"
+#include <LuminaEngine/LuminaEngine.h>
+#include <LuminaEngine/core/Engine.h>
+#include <LuminaEngine/graphics/Sprite.h>
+#include <LuminaEngine/input/Input.h>
+#include <iostream>
 
 int main() {
     Lumina::Engine engine;
     
+    // Initialize with title and resolution
     if (!engine.Initialize("My Game", 1280, 720)) {
+        std::cerr << "Failed to initialize engine!" << std::endl;
         return -1;
     }
     
+    // Load a Lua script for game logic
+    engine.LoadScript("scripts/main.lua");
+    
+    // Run the main game loop
     engine.Run();
+    
+    // Clean shutdown
     engine.Shutdown();
     
     return 0;
@@ -123,9 +252,20 @@ int main() {
 ### Lua Scripts
 
 ```lua
--- script.lua
+-- scripts/main.lua
 local version = Lumina.getVersion()
-print("Engine version: " .. version)
+print("Lumina Engine version: " .. version)
+
+function OnUpdate(dt)
+    -- Game logic here
+    if Lumina.Input.GetKeyDown(Lumina.Key.Escape) then
+        Lumina.Quit()
+    end
+end
+
+function OnRender()
+    -- Custom rendering here
+end
 ```
 
 ## Project Structure
@@ -173,9 +313,12 @@ lumina-engine/
 
 Comprehensive documentation is available in the `docs/` directory:
 
-- [Getting Started](docs/GETTING_STARTED.md)
-- [Scripting Guide](docs/SCRIPTING_GUIDE.md)
-- [Lua API Reference](lua_api_reference.lua)
+| Document | Description |
+|----------|-------------|
+| [Getting Started](docs/GETTING_STARTED.md) | Quick start guide for new developers |
+| [Scripting Guide](docs/SCRIPTING_GUIDE.md) | Lua scripting API and examples |
+| [API Reference](docs/API_REFERENCE.md) | Complete C++ API reference |
+| [Physics Guide](docs/PHYSICS_GUIDE.md) | Box2D physics integration |
 
 ## Main API
 
