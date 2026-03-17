@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/en/2.0.0/).
 ### Added
 - **API_REFERENCE.md** - Complete C++ API reference documentation
 - **PHYSICS_GUIDE.md** - Box2D physics integration guide
-- **FLATPAK_GUIDE.md** - Flatpak building and distribution guide
+- **FLATPAK_GUIDE.md** - Flatpak building guide
 - **Flatpak configuration** - Complete flatpak manifest and metadata
 
 ### Improved
@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/en/2.0.0/).
 - Optional Box2D integration for 2D physics
 - Scripting system with Lua/sol2
 - Logging system
-- Flatpak/Flathub configuration
+- Flatpak configuration
 
 ### Features
 - Engine initialization system
