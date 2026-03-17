@@ -283,6 +283,8 @@ set_target_properties(LuminaEngine PROPERTIES
 
 # Installation
 include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
 install(TARGETS LuminaEngine
     EXPORT LuminaEngineTargets
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -299,6 +301,25 @@ install(DIRECTORY ${INCLUDE_DIR}/LuminaEngine
 install(EXPORT LuminaEngineTargets
     FILE LuminaEngineTargets.cmake
     NAMESPACE LuminaEngine::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/LuminaEngine
+)
+
+# Generate Config.cmake for find_package() support
+configure_package_config_file(
+    "${CMAKE_SOURCE_DIR}/cmake/LuminaEngineConfig.cmake.in"
+    "${CMAKE_BINARY_DIR}/LuminaEngineConfig.cmake"
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/LuminaEngine
+)
+
+write_basic_package_version_file(
+    "${CMAKE_BINARY_DIR}/LuminaEngineConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
+install(FILES
+    "${CMAKE_BINARY_DIR}/LuminaEngineConfig.cmake"
+    "${CMAKE_BINARY_DIR}/LuminaEngineConfigVersion.cmake"
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/LuminaEngine
 )
 
@@ -353,3 +374,42 @@ endif()
 if(TARGET nlohmann_json::nlohmann_json)
     message(STATUS "JSON: Integrated")
 endif()
+
+# ============================================================================
+# CPack - Package generation (.deb, .rpm, .tar.gz, .zip)
+# ============================================================================
+set(CPACK_PACKAGE_NAME "lumina-engine")
+set(CPACK_PACKAGE_VENDOR "Lumina Engine Community")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Lumina Engine - C++ 2D game engine with SDL3, Box2D, and Lua scripting")
+set(CPACK_PACKAGE_DESCRIPTION "A modern, lightweight C++ 2D game engine built with SDL3 for rendering, Box2D for physics, Lua/sol2 for scripting, EnTT for ECS, and nlohmann/json for serialization.")
+set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
+set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
+set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
+set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
+set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/lumina-engine/lumina-engine")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE")
+set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.md")
+set(CPACK_PACKAGE_CONTACT "lumina-engine@github.com")
+set(CPACK_PACKAGE_ICON "${CMAKE_SOURCE_DIR}/assets/logo.svg")
+
+# Source package
+set(CPACK_SOURCE_GENERATOR "TGZ;ZIP")
+set(CPACK_SOURCE_IGNORE_FILES "/build/;/.git/;/.github/;/.cache/;/dist/")
+
+# Binary package
+set(CPACK_GENERATOR "TGZ;ZIP")
+
+# DEB package
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Lumina Engine Community")
+set(CPACK_DEBIAN_PACKAGE_SECTION "devel")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "libsdl3-0, liblua5.4-0")
+set(CPACK_DEBIAN_PACKAGE_RECOMMENDS "libbox2d-dev")
+set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+
+# RPM package
+set(CPACK_RPM_PACKAGE_LICENSE "MIT")
+set(CPACK_RPM_PACKAGE_GROUP "Development/Libraries")
+set(CPACK_RPM_PACKAGE_REQUIRES "SDL3, lua-libs >= 5.4")
+set(CPACK_RPM_FILE_NAME RPM-DEFAULT)
+
+include(CPack)

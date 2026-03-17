@@ -3,132 +3,749 @@
 # Lumina Engine CLI Tool
 # ============================================================================
 # Usage:
-#   lumina run [path]     - Run a Lumina project (looks for main.lua)
-#   lumina example        - Run the built-in example project
-#   lumina build          - Build the engine from source
-#   lumina help           - Show this help message
+#   lumina run [path]         - Run a Lumina project (looks for main.lua)
+#   lumina init [name]        - Create a new Lumina project
+#   lumina build [mode]       - Build the engine (release|debug)
+#   lumina clean              - Remove build artifacts
+#   lumina export [format]    - Export project (appimage|flatpak|tarball|zip)
+#   lumina example            - Run the built-in example
+#   lumina config             - Show current build configuration
+#   lumina version            - Show version information
+#   lumina help               - Show this help message
 
 set -e
 
+VERSION="1.0.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENGINE_DIR="$(dirname "$SCRIPT_DIR")"
 BUILD_DIR="$ENGINE_DIR/build"
 EXECUTABLE="$BUILD_DIR/bin/LuminaEngineExample"
 
-# Colors for output
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+DIM='\033[2m'
+NC='\033[0m'
+
+# ============================================================================
+# Helpers
+# ============================================================================
 
 print_banner() {
     echo -e "${BLUE}"
     echo "  _                    _             "
     echo " | |   _   _ _ __ ___ (_)_ __   __ _ "
-    echo " | |  | | | | '_ \` _ \| | '_ \ / _\` |"
+    echo " | |  | | | | '\''_ \` _ \| | '\''_ \ / _\` |"
     echo " | |__| |_| | | | | | | | | | | (_| |"
     echo " |_____\__,_|_| |_| |_|_|_| |_|\__,_|"
     echo -e "${NC}"
-    echo "  Lumina Engine v1.0.0"
+    echo -e "  ${BOLD}Lumina Engine${NC} v${VERSION}"
     echo ""
 }
+
+log_info() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+log_warn() {
+    echo -e "${YELLOW}[WARN]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+log_step() {
+    echo -e "${CYAN}  ->  ${NC}$1"
+}
+
+check_dependencies() {
+    local missing=()
+    for cmd in cmake make; do
+        if ! command -v "$cmd" &>/dev/null; then
+            missing+=("$cmd")
+        fi
+    done
+    if [ ${#missing[@]} -gt 0 ]; then
+        log_error "Missing dependencies: ${missing[*]}"
+        echo "Install them before continuing."
+        exit 1
+    fi
+}
+
+ensure_built() {
+    if [ ! -f "$EXECUTABLE" ]; then
+        log_warn "Engine not built. Building now..."
+        build_engine "release"
+    fi
+}
+
+# ============================================================================
+# Commands
+# ============================================================================
 
 show_help() {
     print_banner
-    echo "Usage: lumina <command> [options]"
+    echo -e "${BOLD}Usage:${NC} lumina <command> [options]"
     echo ""
-    echo "Commands:"
-    echo "  run [path]    Run a Lumina project. If path is provided, looks for"
-    echo "                main.lua in that directory. Otherwise uses current dir."
-    echo "  example       Run the built-in example/sandbox project"
-    echo "  build         Build the engine from source"
-    echo "  help          Show this help message"
+    echo -e "${BOLD}Project Commands:${NC}"
+    echo "  init [name]         Create a new Lumina project with template files"
+    echo "  run [path]          Run a Lumina project (looks for main.lua)"
+    echo "  example             Run the built-in example/sandbox"
     echo ""
-    echo "Examples:"
+    echo -e "${BOLD}Build Commands:${NC}"
+    echo "  build [mode]        Build the engine (release|debug) [default: release]"
+    echo "  clean               Remove all build artifacts"
+    echo ""
+    echo -e "${BOLD}Export Commands:${NC}"
+    echo "  export tarball      Package project as .tar.gz archive"
+    echo "  export zip          Package project as .zip archive"
+    echo "  export appimage     Package project as AppImage (Linux)"
+    echo "  export flatpak      Build project as Flatpak"
+    echo "  export deb          Build .deb package (Debian/Ubuntu)"
+    echo "  export rpm          Build .rpm package (Fedora/RHEL)"
+    echo ""
+    echo -e "${BOLD}Info Commands:${NC}"
+    echo "  config              Show current build configuration"
+    echo "  version             Show version information"
+    echo "  help                Show this help message"
+    echo ""
+    echo -e "${BOLD}Examples:${NC}"
+    echo "  lumina init my_game"
     echo "  lumina run ./my_game"
-    echo "  lumina example"
-    echo "  lumina build"
+    echo "  lumina build debug"
+    echo "  lumina export tarball"
+    echo "  lumina export flatpak"
+}
+
+show_version() {
+    echo "Lumina Engine v${VERSION}"
+    echo "C++17 | SDL3 | Box2D | Lua/sol2 | EnTT"
+    if [ -f "$BUILD_DIR/CMakeCache.txt" ]; then
+        local build_type
+        build_type=$(grep "CMAKE_BUILD_TYPE:" "$BUILD_DIR/CMakeCache.txt" 2>/dev/null | cut -d= -f2)
+        echo "Build type: ${build_type:-not configured}"
+    else
+        echo "Build: not configured"
+    fi
+}
+
+show_config() {
+    print_banner
+    echo -e "${BOLD}Engine Configuration${NC}"
+    echo "-------------------------------------------"
+    echo "Engine directory:  $ENGINE_DIR"
+    echo "Build directory:   $BUILD_DIR"
+    echo "Executable:        $EXECUTABLE"
+    echo ""
+
+    if [ -f "$BUILD_DIR/CMakeCache.txt" ]; then
+        echo -e "${BOLD}CMake Configuration${NC}"
+        echo "-------------------------------------------"
+        local vars=("CMAKE_BUILD_TYPE" "CMAKE_CXX_COMPILER" "CMAKE_CXX_STANDARD"
+                     "LUMINA_BUILD_SHARED_LIBS" "LUMINA_BUILD_EXAMPLES" "LUMINA_BUILD_TESTS"
+                     "LUMINA_USE_SYSTEM_SDL3" "LUMINA_USE_SYSTEM_LUA" "LUMINA_USE_SYSTEM_BOX2D")
+        for var in "${vars[@]}"; do
+            local val
+            val=$(grep "^${var}:" "$BUILD_DIR/CMakeCache.txt" 2>/dev/null | head -1 | cut -d= -f2)
+            if [ -n "$val" ]; then
+                printf "  %-30s %s\n" "$var" "$val"
+            fi
+        done
+    else
+        log_warn "Not configured yet. Run 'lumina build' first."
+    fi
+    echo ""
+
+    echo -e "${BOLD}System Dependencies${NC}"
+    echo "-------------------------------------------"
+    for cmd in cmake make gcc g++ clang lua5.4 flatpak flatpak-builder; do
+        if command -v "$cmd" &>/dev/null; then
+            local ver
+            ver=$("$cmd" --version 2>/dev/null | head -1 || echo "found")
+            printf "  %-20s ${GREEN}found${NC}  %s\n" "$cmd" "$ver"
+        else
+            printf "  %-20s ${DIM}not found${NC}\n" "$cmd"
+        fi
+    done
 }
 
 build_engine() {
-    echo -e "${YELLOW}Building Lumina Engine...${NC}"
-    cd "$ENGINE_DIR"
-    
-    if [ ! -d "$BUILD_DIR" ]; then
-        mkdir -p "$BUILD_DIR"
+    local mode="${1:-release}"
+    local cmake_build_type
+
+    case "$mode" in
+        release|Release)
+            cmake_build_type="Release"
+            ;;
+        debug|Debug)
+            cmake_build_type="Debug"
+            ;;
+        relwithdebinfo|RelWithDebInfo)
+            cmake_build_type="RelWithDebInfo"
+            ;;
+        minsizerel|MinSizeRel)
+            cmake_build_type="MinSizeRel"
+            ;;
+        *)
+            log_error "Unknown build mode: $mode"
+            echo "Valid modes: release, debug, relwithdebinfo, minsizerel"
+            exit 1
+            ;;
+    esac
+
+    check_dependencies
+
+    log_info "Building Lumina Engine ($cmake_build_type)..."
+
+    mkdir -p "$BUILD_DIR"
+
+    log_step "Configuring CMake..."
+    cmake -B "$BUILD_DIR" -S "$ENGINE_DIR" \
+        -DCMAKE_BUILD_TYPE="$cmake_build_type" \
+        -DLUMINA_BUILD_EXAMPLES=ON
+
+    local nproc_val
+    nproc_val=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+
+    log_step "Compiling (${nproc_val} threads)..."
+    cmake --build "$BUILD_DIR" --parallel "$nproc_val"
+
+    log_info "Build completed: $EXECUTABLE"
+}
+
+clean_build() {
+    if [ -d "$BUILD_DIR" ]; then
+        log_info "Removing build directory..."
+        rm -rf "$BUILD_DIR"
+        log_info "Clean completed."
+    else
+        log_info "Nothing to clean."
     fi
-    
-    cmake -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release
-    cmake --build "$BUILD_DIR" --parallel
-    
-    echo -e "${GREEN}Build completed successfully!${NC}"
-    echo "Executable: $EXECUTABLE"
+}
+
+init_project() {
+    local project_name="${1:-my_lumina_game}"
+
+    if [ -d "$project_name" ]; then
+        log_error "Directory '$project_name' already exists."
+        exit 1
+    fi
+
+    log_info "Creating project '$project_name'..."
+
+    mkdir -p "$project_name"/{scripts,assets/textures,assets/audio,data}
+
+    # main.lua
+    cat > "$project_name/scripts/main.lua" << 'LUAEOF'
+-- main.lua - Lumina Engine Project
+Lumina.Log.Info("Game started!")
+
+local playerX = 400
+local playerY = 300
+local speed = 200
+
+function OnUpdate(dt)
+    -- Movement
+    if Lumina.Input.GetKey(Lumina.Key.W) or Lumina.Input.GetKey(Lumina.Key.Up) then
+        playerY = playerY - speed * dt
+    end
+    if Lumina.Input.GetKey(Lumina.Key.S) or Lumina.Input.GetKey(Lumina.Key.Down) then
+        playerY = playerY + speed * dt
+    end
+    if Lumina.Input.GetKey(Lumina.Key.A) or Lumina.Input.GetKey(Lumina.Key.Left) then
+        playerX = playerX - speed * dt
+    end
+    if Lumina.Input.GetKey(Lumina.Key.D) or Lumina.Input.GetKey(Lumina.Key.Right) then
+        playerX = playerX + speed * dt
+    end
+
+    -- Quit
+    if Lumina.Input.GetKeyDown(Lumina.Key.Escape) then
+        Lumina.Quit()
+    end
+end
+
+function OnRender()
+    -- Rendering handled by the engine
+end
+LUAEOF
+
+    # CMakeLists.txt for standalone project
+    cat > "$project_name/CMakeLists.txt" << CMAKEEOF
+cmake_minimum_required(VERSION 3.14)
+project(${project_name} LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+find_package(LuminaEngine REQUIRED)
+
+add_executable(\${PROJECT_NAME} main.cpp)
+target_link_libraries(\${PROJECT_NAME} PRIVATE LuminaEngine::LuminaEngine)
+
+# Copy scripts and assets to build directory
+file(COPY scripts DESTINATION \${CMAKE_BINARY_DIR})
+file(COPY assets DESTINATION \${CMAKE_BINARY_DIR})
+CMAKEEOF
+
+    # main.cpp
+    cat > "$project_name/main.cpp" << 'CPPEOF'
+#include <LuminaEngine/LuminaEngine.h>
+#include <iostream>
+
+int main(int argc, char* argv[]) {
+    Lumina::Engine engine;
+
+    if (!engine.Initialize("My Game", 1280, 720)) {
+        std::cerr << "Failed to initialize engine" << std::endl;
+        return 1;
+    }
+
+    // Load game script
+    std::string script = "scripts/main.lua";
+    if (argc > 1) {
+        script = argv[1];
+    }
+
+#ifdef LUA_AVAILABLE
+    engine.LoadScript(script);
+#endif
+
+    engine.Run();
+    engine.Shutdown();
+
+    return 0;
+}
+CPPEOF
+
+    # .gitignore
+    cat > "$project_name/.gitignore" << 'GIEOF'
+build/
+*.o
+*.a
+*.so
+*.dll
+*.exe
+.cache/
+CMakeFiles/
+GIEOF
+
+    # lumina.json project config
+    cat > "$project_name/lumina.json" << JSONEOF
+{
+    "name": "${project_name}",
+    "version": "0.1.0",
+    "engine_version": "${VERSION}",
+    "entry_script": "scripts/main.lua",
+    "window": {
+        "title": "${project_name}",
+        "width": 1280,
+        "height": 720
+    },
+    "export": {
+        "include_assets": true,
+        "include_scripts": true
+    }
+}
+JSONEOF
+
+    log_info "Project created: $project_name/"
+    echo ""
+    echo "  Project structure:"
+    echo "  $project_name/"
+    echo "  ├── CMakeLists.txt"
+    echo "  ├── main.cpp"
+    echo "  ├── lumina.json"
+    echo "  ├── .gitignore"
+    echo "  ├── scripts/"
+    echo "  │   └── main.lua"
+    echo "  ├── assets/"
+    echo "  │   ├── textures/"
+    echo "  │   └── audio/"
+    echo "  └── data/"
+    echo ""
+    echo "  Next steps:"
+    echo "    cd $project_name"
+    echo "    lumina run ."
 }
 
 run_project() {
     local project_path="${1:-.}"
-    
+
     # Resolve to absolute path
     project_path="$(cd "$project_path" 2>/dev/null && pwd)" || {
-        echo -e "${RED}Error: Directory '$1' not found${NC}"
+        log_error "Directory '$1' not found"
         exit 1
     }
-    
-    # Check for main.lua
-    if [ ! -f "$project_path/main.lua" ]; then
-        echo -e "${RED}Error: No main.lua found in '$project_path'${NC}"
-        echo "Lumina projects require a main.lua file in the project root."
+
+    # Detect entry script
+    local script=""
+    if [ -f "$project_path/lumina.json" ]; then
+        # Parse entry_script from lumina.json
+        script=$(grep -o '"entry_script"[[:space:]]*:[[:space:]]*"[^"]*"' "$project_path/lumina.json" \
+            | head -1 | sed 's/.*"entry_script"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
+    fi
+
+    if [ -z "$script" ]; then
+        # Fallback: look for main.lua or scripts/main.lua
+        if [ -f "$project_path/main.lua" ]; then
+            script="main.lua"
+        elif [ -f "$project_path/scripts/main.lua" ]; then
+            script="scripts/main.lua"
+        fi
+    fi
+
+    if [ -z "$script" ] || [ ! -f "$project_path/$script" ]; then
+        log_error "No Lua script found in '$project_path'"
+        echo "Expected: main.lua, scripts/main.lua, or entry_script in lumina.json"
         exit 1
     fi
-    
-    # Check if engine is built
-    if [ ! -f "$EXECUTABLE" ]; then
-        echo -e "${YELLOW}Engine not built. Building now...${NC}"
-        build_engine
-    fi
-    
-    echo -e "${GREEN}Running project: $project_path${NC}"
+
+    ensure_built
+
+    log_info "Running project: $project_path"
+    log_step "Script: $script"
     cd "$project_path"
-    "$EXECUTABLE" main.lua
+    "$EXECUTABLE" "$script"
 }
 
 run_example() {
     local example_path="$ENGINE_DIR/scripts"
-    
-    # Check if engine is built
-    if [ ! -f "$EXECUTABLE" ]; then
-        echo -e "${YELLOW}Engine not built. Building now...${NC}"
-        build_engine
-    fi
-    
-    # Check for example script
+
+    ensure_built
+
     if [ -f "$example_path/example.lua" ]; then
-        echo -e "${GREEN}Running built-in example...${NC}"
+        log_info "Running built-in example..."
         cd "$example_path"
         "$EXECUTABLE" example.lua
     else
-        echo -e "${YELLOW}Running engine without script (demo mode)...${NC}"
+        log_warn "Running engine without script (demo mode)..."
         "$EXECUTABLE"
     fi
 }
 
-# Main command handling
+# ============================================================================
+# Export Commands
+# ============================================================================
+
+export_project() {
+    local format="${1:-tarball}"
+    local project_path="${2:-.}"
+
+    project_path="$(cd "$project_path" 2>/dev/null && pwd)" || {
+        log_error "Directory not found: $project_path"
+        exit 1
+    }
+
+    # Read project config
+    local project_name
+    project_name=$(basename "$project_path")
+    local project_version="1.0.0"
+
+    if [ -f "$project_path/lumina.json" ]; then
+        local parsed_name
+        parsed_name=$(grep -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' "$project_path/lumina.json" \
+            | head -1 | sed 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
+        local parsed_version
+        parsed_version=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$project_path/lumina.json" \
+            | head -1 | sed 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
+        [ -n "$parsed_name" ] && project_name="$parsed_name"
+        [ -n "$parsed_version" ] && project_version="$parsed_version"
+    fi
+
+    local output_dir="$project_path/dist"
+    mkdir -p "$output_dir"
+
+    case "$format" in
+        tarball|tar|tar.gz)
+            export_tarball "$project_path" "$output_dir" "$project_name" "$project_version"
+            ;;
+        zip)
+            export_zip "$project_path" "$output_dir" "$project_name" "$project_version"
+            ;;
+        appimage)
+            export_appimage "$project_path" "$output_dir" "$project_name" "$project_version"
+            ;;
+        flatpak)
+            export_flatpak "$project_path" "$output_dir" "$project_name" "$project_version"
+            ;;
+        deb)
+            export_cpack "$project_path" "$output_dir" "DEB"
+            ;;
+        rpm)
+            export_cpack "$project_path" "$output_dir" "RPM"
+            ;;
+        *)
+            log_error "Unknown export format: $format"
+            echo "Valid formats: tarball, zip, appimage, flatpak, deb, rpm"
+            exit 1
+            ;;
+    esac
+}
+
+export_tarball() {
+    local project_path="$1" output_dir="$2" name="$3" version="$4"
+    local archive_name="${name}-${version}-linux-x86_64"
+    local staging="$output_dir/.staging/${archive_name}"
+
+    log_info "Exporting as tarball..."
+
+    ensure_built
+    rm -rf "$output_dir/.staging"
+    mkdir -p "$staging"/{bin,lib,scripts,assets}
+
+    # Copy executable
+    log_step "Copying executable..."
+    cp "$EXECUTABLE" "$staging/bin/${name}"
+
+    # Copy shared libraries if any
+    if ls "$BUILD_DIR"/lib/*.so* &>/dev/null 2>&1; then
+        cp "$BUILD_DIR"/lib/*.so* "$staging/lib/" 2>/dev/null || true
+    fi
+
+    # Copy scripts
+    if [ -d "$project_path/scripts" ]; then
+        log_step "Copying scripts..."
+        cp -r "$project_path/scripts/"* "$staging/scripts/" 2>/dev/null || true
+    fi
+
+    # Copy assets
+    if [ -d "$project_path/assets" ]; then
+        log_step "Copying assets..."
+        cp -r "$project_path/assets/"* "$staging/assets/" 2>/dev/null || true
+    fi
+
+    # Copy lumina.json
+    [ -f "$project_path/lumina.json" ] && cp "$project_path/lumina.json" "$staging/"
+
+    # Create launcher script
+    cat > "$staging/run.sh" << 'RUNEOF'
+#!/bin/bash
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export LD_LIBRARY_PATH="$SCRIPT_DIR/lib:$LD_LIBRARY_PATH"
+cd "$SCRIPT_DIR"
+exec "$SCRIPT_DIR/bin/$(ls bin/ | head -1)" "$@"
+RUNEOF
+    chmod +x "$staging/run.sh"
+
+    # Create tarball
+    log_step "Creating archive..."
+    tar -czf "$output_dir/${archive_name}.tar.gz" -C "$output_dir/.staging" "$archive_name"
+
+    rm -rf "$output_dir/.staging"
+    log_info "Exported: $output_dir/${archive_name}.tar.gz"
+}
+
+export_zip() {
+    local project_path="$1" output_dir="$2" name="$3" version="$4"
+    local archive_name="${name}-${version}-linux-x86_64"
+    local staging="$output_dir/.staging/${archive_name}"
+
+    if ! command -v zip &>/dev/null; then
+        log_error "zip is not installed. Install it: sudo apt install zip"
+        exit 1
+    fi
+
+    log_info "Exporting as zip..."
+
+    ensure_built
+    rm -rf "$output_dir/.staging"
+    mkdir -p "$staging"/{bin,lib,scripts,assets}
+
+    cp "$EXECUTABLE" "$staging/bin/${name}"
+    if ls "$BUILD_DIR"/lib/*.so* &>/dev/null 2>&1; then
+        cp "$BUILD_DIR"/lib/*.so* "$staging/lib/" 2>/dev/null || true
+    fi
+    [ -d "$project_path/scripts" ] && cp -r "$project_path/scripts/"* "$staging/scripts/" 2>/dev/null || true
+    [ -d "$project_path/assets" ] && cp -r "$project_path/assets/"* "$staging/assets/" 2>/dev/null || true
+    [ -f "$project_path/lumina.json" ] && cp "$project_path/lumina.json" "$staging/"
+
+    # Create launcher
+    cat > "$staging/run.sh" << 'RUNEOF'
+#!/bin/bash
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export LD_LIBRARY_PATH="$SCRIPT_DIR/lib:$LD_LIBRARY_PATH"
+cd "$SCRIPT_DIR"
+exec "$SCRIPT_DIR/bin/$(ls bin/ | head -1)" "$@"
+RUNEOF
+    chmod +x "$staging/run.sh"
+
+    log_step "Creating zip archive..."
+    (cd "$output_dir/.staging" && zip -r "$output_dir/${archive_name}.zip" "$archive_name")
+
+    rm -rf "$output_dir/.staging"
+    log_info "Exported: $output_dir/${archive_name}.zip"
+}
+
+export_appimage() {
+    local project_path="$1" output_dir="$2" name="$3" version="$4"
+
+    log_info "Exporting as AppImage..."
+
+    # Check for appimagetool
+    local appimagetool=""
+    if command -v appimagetool &>/dev/null; then
+        appimagetool="appimagetool"
+    elif [ -f "$output_dir/appimagetool-x86_64.AppImage" ]; then
+        appimagetool="$output_dir/appimagetool-x86_64.AppImage"
+    else
+        log_step "Downloading appimagetool..."
+        wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" \
+            -O "$output_dir/appimagetool-x86_64.AppImage"
+        chmod +x "$output_dir/appimagetool-x86_64.AppImage"
+        appimagetool="$output_dir/appimagetool-x86_64.AppImage"
+    fi
+
+    ensure_built
+
+    local appdir="$output_dir/.AppDir"
+    rm -rf "$appdir"
+    mkdir -p "$appdir"/usr/{bin,lib,share/applications,share/icons/hicolor/scalable/apps}
+
+    # Copy binary
+    log_step "Preparing AppDir..."
+    cp "$EXECUTABLE" "$appdir/usr/bin/${name}"
+
+    # Copy libs
+    if ls "$BUILD_DIR"/lib/*.so* &>/dev/null 2>&1; then
+        cp "$BUILD_DIR"/lib/*.so* "$appdir/usr/lib/" 2>/dev/null || true
+    fi
+
+    # Copy scripts and assets
+    mkdir -p "$appdir/usr/share/${name}"
+    [ -d "$project_path/scripts" ] && cp -r "$project_path/scripts" "$appdir/usr/share/${name}/"
+    [ -d "$project_path/assets" ] && cp -r "$project_path/assets" "$appdir/usr/share/${name}/"
+
+    # Desktop file
+    cat > "$appdir/usr/share/applications/${name}.desktop" << DESKTOPEOF
+[Desktop Entry]
+Type=Application
+Name=${name}
+Exec=${name}
+Icon=${name}
+Categories=Game;
+DESKTOPEOF
+    cp "$appdir/usr/share/applications/${name}.desktop" "$appdir/${name}.desktop"
+
+    # Icon (use engine logo or placeholder)
+    if [ -f "$ENGINE_DIR/assets/logo.svg" ]; then
+        cp "$ENGINE_DIR/assets/logo.svg" "$appdir/usr/share/icons/hicolor/scalable/apps/${name}.svg"
+        cp "$ENGINE_DIR/assets/logo.svg" "$appdir/${name}.svg"
+    else
+        # Create minimal SVG placeholder
+        echo '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="#4A90D9" width="64" height="64" rx="8"/></svg>' \
+            > "$appdir/${name}.svg"
+    fi
+
+    # AppRun
+    cat > "$appdir/AppRun" << APPRUNEOF
+#!/bin/bash
+SELF="\$(readlink -f "\$0")"
+HERE="\${SELF%/*}"
+export LD_LIBRARY_PATH="\${HERE}/usr/lib:\${LD_LIBRARY_PATH}"
+cd "\${HERE}/usr/share/${name}"
+exec "\${HERE}/usr/bin/${name}" "\$@"
+APPRUNEOF
+    chmod +x "$appdir/AppRun"
+
+    # Build AppImage
+    log_step "Building AppImage..."
+    ARCH=x86_64 "$appimagetool" "$appdir" "$output_dir/${name}-${version}-x86_64.AppImage" 2>/dev/null
+
+    rm -rf "$appdir"
+    log_info "Exported: $output_dir/${name}-${version}-x86_64.AppImage"
+}
+
+export_flatpak() {
+    local project_path="$1" output_dir="$2" name="$3" version="$4"
+
+    if ! command -v flatpak-builder &>/dev/null; then
+        log_error "flatpak-builder is not installed."
+        echo "Install it: sudo apt install flatpak flatpak-builder"
+        exit 1
+    fi
+
+    log_info "Exporting as Flatpak..."
+
+    local flatpak_dir="$ENGINE_DIR/flatpak"
+    local manifest="$flatpak_dir/org.luminaengine.LuminaEngine.yml"
+
+    if [ ! -f "$manifest" ]; then
+        log_error "Flatpak manifest not found: $manifest"
+        exit 1
+    fi
+
+    local flatpak_build="$output_dir/.flatpak-build"
+    local flatpak_repo="$output_dir/.flatpak-repo"
+
+    log_step "Building Flatpak..."
+    flatpak-builder --force-clean \
+        --repo="$flatpak_repo" \
+        "$flatpak_build" \
+        "$manifest"
+
+    log_step "Creating bundle..."
+    flatpak build-bundle \
+        "$flatpak_repo" \
+        "$output_dir/${name}-${version}.flatpak" \
+        org.luminaengine.LuminaEngine
+
+    rm -rf "$flatpak_build" "$flatpak_repo"
+    log_info "Exported: $output_dir/${name}-${version}.flatpak"
+}
+
+export_cpack() {
+    local project_path="$1" output_dir="$2" generator="$3"
+
+    log_info "Exporting as ${generator} package..."
+
+    ensure_built
+
+    log_step "Running CPack..."
+    (cd "$BUILD_DIR" && cpack -G "$generator" -B "$output_dir")
+
+    log_info "Package created in: $output_dir/"
+}
+
+# ============================================================================
+# Main
+# ============================================================================
+
 case "${1:-help}" in
     run)
         run_project "$2"
         ;;
+    init)
+        init_project "$2"
+        ;;
+    build)
+        build_engine "$2"
+        ;;
+    clean)
+        clean_build
+        ;;
+    export)
+        export_project "$2" "$3"
+        ;;
     example)
         run_example
         ;;
-    build)
-        build_engine
+    config)
+        show_config
+        ;;
+    version|--version|-v)
+        show_version
         ;;
     help|--help|-h)
         show_help
         ;;
     *)
-        echo -e "${RED}Unknown command: $1${NC}"
+        log_error "Unknown command: $1"
         echo "Run 'lumina help' for usage information."
         exit 1
         ;;

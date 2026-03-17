@@ -1,0 +1,21 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# Find required dependencies
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+    pkg_check_modules(SDL3 QUIET sdl3)
+endif()
+if(NOT SDL3_FOUND)
+    find_package(SDL3 QUIET)
+endif()
+
+find_package(Lua QUIET)
+
+find_path(BOX2D_INCLUDE_DIR box2d/box2d.h)
+find_library(BOX2D_LIBRARY NAMES box2d)
+
+include("${CMAKE_CURRENT_LIST_DIR}/LuminaEngineTargets.cmake")
+
+check_required_components(LuminaEngine)

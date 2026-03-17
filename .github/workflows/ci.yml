@@ -5,19 +5,34 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  release:
+    types: [ published ]
 
 jobs:
   build:
-    name: Build (Linux)
-    runs-on: ubuntu-latest
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: Linux
+            generator: Ninja
+            install_deps: |
+              sudo apt-get update
+              sudo apt-get install -y cmake ninja-build pkg-config liblua5.4-dev libbox2d-dev
+          - os: macos-latest
+            name: macOS
+            generator: Ninja
+            install_deps: |
+              brew install cmake ninja lua box2d
 
     steps:
     - uses: actions/checkout@v4
 
     - name: Install Dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y cmake ninja-build pkg-config liblua5.4-dev libbox2d-dev
+      run: ${{ matrix.install_deps }}
 
     - name: Install SDL3
       run: |
@@ -28,9 +43,74 @@ jobs:
         sudo cmake --install build
 
     - name: Configure CMake
-      run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      run: cmake -B build -G ${{ matrix.generator }} -DCMAKE_BUILD_TYPE=Release -DLUMINA_BUILD_EXAMPLES=ON
       env:
         PKG_CONFIG_PATH: /usr/local/lib/pkgconfig
 
     - name: Build
       run: cmake --build build --parallel
+
+    - name: Package (TGZ + ZIP)
+      if: github.event_name == 'release'
+      run: |
+        cd build
+        cpack -G "TGZ;ZIP"
+
+    - name: Package (DEB)
+      if: github.event_name == 'release' && matrix.os == 'ubuntu-latest'
+      run: |
+        cd build
+        cpack -G DEB
+
+    - name: Upload Build Artifacts
+      if: github.event_name == 'release'
+      uses: actions/upload-artifact@v4
+      with:
+        name: lumina-engine-${{ matrix.name }}
+        path: |
+          build/*.tar.gz
+          build/*.zip
+          build/*.deb
+
+  flatpak:
+    name: Build Flatpak
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build Flatpak
+      uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+      with:
+        bundle: lumina-engine.flatpak
+        manifest-path: flatpak/org.luminaengine.LuminaEngine.yml
+
+    - name: Upload Flatpak
+      uses: actions/upload-artifact@v4
+      with:
+        name: lumina-engine-flatpak
+        path: lumina-engine.flatpak
+
+  release:
+    name: Upload Release Assets
+    needs: [build, flatpak]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    permissions:
+      contents: write
+
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Upload to Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          artifacts/**/*.tar.gz
+          artifacts/**/*.zip
+          artifacts/**/*.deb
+          artifacts/**/*.flatpak
